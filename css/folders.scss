@@ -1,0 +1,206 @@
+ul.folders {
+	list-style-type: none;
+	display: grid;
+	gap: 40px;
+	grid-template-columns: repeat(2, 1fr);
+
+	user-select: none;
+	user-drag: none;
+	app-region: no-drag;
+
+
+
+	>li.widget {
+		grid-column: span 2;
+		grid-row: span 3;
+
+		border-radius: var(--border-radius);
+		padding: var(--padding) calc(var(--padding) * 2);
+		min-height: 30dvh;
+
+		
+
+		color: var(--widget-text-color);
+		background-color: var(--widget-background-color);
+
+
+		
+
+		&.intro {
+			display:flex;
+			align-items: center;
+			justify-content: center;
+			flex-direction: column;
+			text-align: center;
+			position: relative;
+
+			background: 
+			linear-gradient(
+				180deg,
+				var(--color-grey-600) 0%,
+				var(--color-grey-700) 100%
+			);
+
+			.typewriter {
+				display: none;
+				position: relative;
+			}
+
+			h3 {
+				font-size: 2.5em;
+				line-height: 1;	
+				max-width: 600px;
+			}
+
+			h3 + p {
+				font-size: 1.5em;
+				line-height: 1.25;
+				margin-top: .75em;
+				max-width: 500px;
+			}
+
+			p {
+				color: var(--widget-subtitle-text-color);
+			}
+
+		}
+	}
+
+	>li.folder {
+		min-width: 0;
+		max-width: 100%;
+		
+
+		>a {
+			text-decoration: none;
+			align-items: center;
+			justify-content: center;
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+
+			>.name {
+				background-color: var(--folder-name-background-color);
+				color: var(--folder-name-text-color);
+				padding: 2px var(--padding-small);
+				font-size: 28px;
+				margin-top: .333em;
+
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				max-width: 100%; // Adjust as needed based on your layout
+
+				box-shadow: var(--border-width) var(--border-width) 0px var(--shadow-color);
+
+				border-radius: var(--border-radius);
+			}
+
+			>.icon {
+				filter: grayscale(1);
+				width: 100%;
+				height: auto;
+				user-drag: none;
+				pointer-events: none;
+				height: 100px;
+
+			}
+
+			&:hover {
+				>.name {
+					color: var(--folder-name-hover-text-color);
+					background-color: var(--folder-name-hover-background-color);
+				}
+
+				>.icon {
+					transform: scale(1.025);
+				}
+			}
+
+			&:focus,
+			&.open,
+			&:active {
+				>.name {
+					outline: 2px dotted var(--folder-focus-outline-color);
+				}
+
+				>.icon {
+					transform: scale(1.025);
+				}
+
+			}
+
+			&:focus-visible {
+				outline: none;
+				>.name {
+					outline-color: var(--color-neon-green);
+				}
+			}
+
+		}
+	}
+
+	@media (min-width: 600px) {
+		grid-template-columns: repeat(3, 1fr); // 2 columns for this breakpoint
+	}
+
+	@media (min-width: 900px) {
+		grid-template-columns: repeat(3, 1fr); // 3 columns for this breakpoint
+	}
+
+	@media (min-width: 1200px) {
+		grid-template-columns: repeat(4, 1fr); // 4 columns for this breakpoint
+	}
+
+	@media (min-width: 1600px) {
+		grid-template-columns: repeat(5, 1fr); // 5 columns for this breakpoint
+	}
+
+	@media(max-width: 900px){
+		
+		>li.widget {
+			min-height: 50dvh;
+
+			&.intro {
+				h3 {
+					font-size: 2em;
+				}
+	
+				h3 + p {
+					font-size: 1.25em;
+				}
+			}
+
+		}
+	}
+
+
+}
+
+
+// FOR OBSERVER
+.folder {
+	opacity: 0;
+	visibility: hidden;
+	transform: translateY(10px);
+	transition: opacity 0.6s var(--easing), transform 0.6s var(--easing);
+
+	&.visible {
+		opacity: 1;
+		visibility: visible;
+		transform: translateY(0);
+	}
+}
+
+
+@media (max-width: 1024px) {
+	ul.folders {
+		>li.folder {
+			>a {
+				>.name {
+					font-size: 16px;
+				}
+			}
+		}
+	}
+}

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Falling Elements</title>
+    <!-- Load pathseg polyfill BEFORE matter.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pathseg/1.2.1/pathseg.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+			background-color: black;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        #talisman-container {
+            position: absolute;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .talisman {
+            max-width: 350px;
+            aspect-ratio: 3 / 4;
+            display: inline-block;
+            overflow: hidden;
+        }
+        .talisman img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+	<!-- 14, 15 broken-->
+	<div id="talisman-container">
+		<div class="member talisman" data-talisman="3">
+			<img src="images/pioneers/1.jpg" alt="Pioneer 1">
+		</div>
+		<div class="member talisman" data-talisman="13">
+			<img src="images/pioneers/2.jpg" alt="Pioneer 2">
+		</div>
+		<div class="member talisman" data-talisman="7">
+			<img src="images/pioneers/3.jpg" alt="Pioneer 3">
+		</div>
+		<div class="member talisman" data-talisman="10">
+			<img src="images/pioneers/4.jpg" alt="Pioneer 4">
+		</div>
+		<div class="member talisman" data-talisman="1">
+			<img src="images/pioneers/5.jpg" alt="Pioneer 5">
+		</div>
+		<div class="member talisman" data-talisman="13">
+			<img src="images/pioneers/6.jpg" alt="Pioneer 6">
+		</div>
+		<div class="member talisman" data-talisman="4">
+			<img src="images/pioneers/7.jpg" alt="Pioneer 7">
+		</div>
+		<div class="member talisman" data-talisman="12">
+			<img src="images/pioneers/8.jpg" alt="Pioneer 8">
+		</div>
+		<div class="member talisman" data-talisman="6">
+			<img src="images/pioneers/9.jpg" alt="Pioneer 9">
+		</div>
+		<div class="member talisman" data-talisman="9">
+			<img src="images/pioneers/10.jpg" alt="Pioneer 10">
+		</div>
+		<div class="member talisman" data-talisman="13">
+			<img src="images/pioneers/11.jpg" alt="Pioneer 11">
+		</div>
+		<div class="member talisman" data-talisman="8">
+			<img src="images/pioneers/12.jpg" alt="Pioneer 12">
+		</div>
+	</div>
+	
+
+    <script>
+        const CONFIG = {
+            GRAVITY: .8,
+            SPAWN_INTERVAL: 1000,
+            SPAWN_ENABLED: true,
+			SPAWN_PER_TICK: 3,
+			CREATE_VARIATIONS: 7,
+            PHYSICS: {
+                RESTITUTION: .8,  // Bounciness of objects
+                FRICTION: 0.1, // Surface friction
+                DENSITY: 0.001, // Mass density of the object
+                ANGULAR_VELOCITY: 0.05,  // Initial angular velocity
+				frictionStatic: 0.5     // Resistance to start rotating
+            },
+            TOTAL_ELEMENTS: 35,
+            VERTEX_SIMPLIFICATION: .5,
+            // Add valid mask IDs here
+            VALID_MASK_IDS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16]
+        };
+
+        const STATE = {
+            spawnedCount: 0,
+            spawnInterval: null,
+            talismanElements: [],
+            masks: {},
+            vertices: {}
+        };
+
+        const Engine = Matter.Engine,
+            Render = Matter.Render,
+            Runner = Matter.Runner,
+            Bodies = Matter.Bodies,
+            Body = Matter.Body,
+            Vertices = Matter.Vertices,
+            Composite = Matter.Composite,
+            Common = Matter.Common,
+            Svg = Matter.Svg;
+
+        const engine = Engine.create();
+        engine.world.gravity.y = CONFIG.GRAVITY;
+
+        const render = Render.create({
+            element: document.body,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: 'transparent'
+            }
+        });
+
+        // Create boundaries
+        const boundaries = {
+            ground: Bodies.rectangle(
+                window.innerWidth / 2,
+                window.innerHeight + 30,
+                window.innerWidth,
+                60,
+                { isStatic: true }
+            ),
+            leftWall: Bodies.rectangle(
+                -30,
+                window.innerHeight / 2,
+                60,
+                window.innerHeight,
+                { isStatic: true }
+            ),
+            rightWall: Bodies.rectangle(
+                window.innerWidth + 30,
+                window.innerHeight / 2,
+                60,
+                window.innerHeight,
+                { isStatic: true }
+            )
+        };
+
+        Composite.add(engine.world, [
+            boundaries.ground,
+            boundaries.leftWall,
+            boundaries.rightWall
+        ]);
+
+        function pathToVertices(pathElement, sampleLength) {
+            try {
+                const points = Svg.pathToVertices(pathElement, sampleLength);
+                return points && points.length > 0 ? Vertices.scale(points, 1, 1) : null;
+            } catch (error) {
+                console.warn('Failed to convert path to vertices:', error);
+                return null;
+            }
+        }
+
+        async function loadMasks() {
+            for (const maskId of CONFIG.VALID_MASK_IDS) {
+                try {
+                    const response = await fetch(`images/talisman/talisman_${maskId}.svg`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const svgText = await response.text();
+                    
+                    // Store the SVG data for visual masking
+                    STATE.masks[maskId] = `data:image/svg+xml;base64,${btoa(svgText)}`;
+                    
+                    // Parse SVG for physics vertices
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                    const pathElement = svgDoc.querySelector('path');
+                    
+                    if (pathElement) {
+                        const vertices = pathToVertices(pathElement, CONFIG.VERTEX_SIMPLIFICATION);
+                        if (vertices) {
+                            STATE.vertices[maskId] = vertices;
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Skipping mask ${maskId}:`, error);
+                }
+            }
+        }
+
+        function createMaskedCanvas(img, maskSrc, width, height) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = width;
+            canvas.height = height;
+
+            // Create temporary image elements
+            const image = new Image();
+            const mask = new Image();
+
+            return new Promise((resolve) => {
+                let loaded = 0;
+                const onLoad = () => {
+                    loaded++;
+                    if (loaded === 2) {
+                        // Draw the image
+                        ctx.drawImage(image, 0, 0, width, height);
+                        
+                        // Apply the mask
+                        ctx.globalCompositeOperation = 'destination-in';
+                        ctx.drawImage(mask, 0, 0, width, height);
+                        
+                        resolve(canvas.toDataURL());
+                    }
+                };
+
+                image.onload = onLoad;
+                mask.onload = onLoad;
+                
+                image.src = img;
+                mask.src = maskSrc;
+            });
+        }
+
+        function getElementDimensions(element) {
+            const originalVisibility = element.style.visibility;
+            element.style.visibility = 'hidden';
+            element.style.display = 'inline-block';
+            document.body.appendChild(element.cloneNode(true));
+            
+            const rect = element.getBoundingClientRect();
+            const dimensions = {
+                width: rect.width,
+                height: rect.height
+            };
+            
+            element.style.visibility = originalVisibility;
+            document.body.removeChild(document.body.lastChild);
+            
+            return dimensions;
+        }
+
+        async function initializeTalismanElements() {
+            await loadMasks();
+            const container = document.getElementById('talisman-container');
+            const elements = container.getElementsByClassName('talisman');
+            
+            STATE.talismanElements = [];
+			
+			await Promise.all(Array.from(elements).map(async element => {
+
+				
+                const img = element.querySelector('img');
+                const dimensions = getElementDimensions(element);
+
+				for(let i = 0; i < CONFIG.CREATE_VARIATIONS; i++) {
+					
+
+					// let maskId = element.dataset.talisman;
+
+					//random maskId between 1 and 13
+					let maskId = Math.floor(Math.random() * 13) + 1;
+
+					const minScale = .85;
+					const maxScale = 1.05;
+
+					const scale = Math.random() * (maxScale - minScale) + minScale;
+
+					let newDimensions = dimensions;
+					newDimensions.width *= scale;
+					newDimensions.height *= scale;
+					
+					// Create masked image
+					const maskedImageUrl = await createMaskedCanvas(
+						img.src,
+						STATE.masks[maskId],
+						newDimensions.width,
+						newDimensions.height
+					);
+
+					STATE.talismanElements.push({
+						id: maskId,
+						element: element,
+						width: newDimensions.width,
+						height: newDimensions.height,
+						imgSrc: maskedImageUrl
+					});
+				}
+            }));
+        }
+
+        function getRandomTalisman() {
+            return STATE.talismanElements[
+                Math.floor(Math.random() * STATE.talismanElements.length)
+            ];
+        }
+
+        function createFallingElement() {
+            if (!CONFIG.SPAWN_ENABLED || STATE.spawnedCount >= CONFIG.TOTAL_ELEMENTS) {
+                clearInterval(STATE.spawnInterval);
+                return;
+            }
+
+			for(let i = 0; i < CONFIG.SPAWN_PER_TICK; i++) {
+				const talisman = getRandomTalisman();
+				const x = Math.random() * (window.innerWidth - talisman.width);
+				const y = -talisman.height;
+				const element = Bodies.rectangle(
+					x,
+					y,
+					talisman.width,
+					talisman.height,
+					{
+						render: {
+							fillStyle: '#F0F0F0',
+							sprite: {
+								texture: talisman.imgSrc,
+								xScale: 1,
+								yScale: 1
+							}
+						},
+						restitution: CONFIG.PHYSICS.RESTITUTION,
+						friction: CONFIG.PHYSICS.FRICTION,
+						density: CONFIG.PHYSICS.DENSITY,
+						chamfer: { radius: 5 },
+						angularVelocity: (Math.random() - 0.5) * CONFIG.PHYSICS.ANGULAR_VELOCITY
+					}
+				);
+
+				// Set random initial angular velocity to create rotation
+				Body.setAngularVelocity(element, (Math.random() - 0.5) * CONFIG.PHYSICS.ANGULAR_VELOCITY);
+				Composite.add(engine.world, element);
+				STATE.spawnedCount++;
+								
+			}
+        }
+
+        function startSpawning() {
+            CONFIG.SPAWN_ENABLED = true;
+            STATE.spawnInterval = setInterval(createFallingElement, CONFIG.SPAWN_INTERVAL);
+        }
+
+        function stopSpawning() {
+            CONFIG.SPAWN_ENABLED = false;
+            if (STATE.spawnInterval) {
+                clearInterval(STATE.spawnInterval);
+            }
+        }
+
+        function resetSimulation() {
+            stopSpawning();
+            STATE.spawnedCount = 0;
+            Composite.clear(engine.world, false);
+            Composite.add(engine.world, [
+                boundaries.ground,
+                boundaries.leftWall,
+                boundaries.rightWall
+            ]);
+            startSpawning();
+        }
+
+
+
+        window.addEventListener('resize', function() {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+            
+            boundaries.ground.position.x = window.innerWidth / 2;
+            boundaries.ground.position.y = window.innerHeight + 30;
+            boundaries.rightWall.position.x = window.innerWidth + 30;
+        });
+
+        async function initSimulation() {
+            try {
+				// do this 3 times
+				
+				await initializeTalismanElements();
+
+                Runner.run(engine);
+                Render.run(render);
+                startSpawning();
+            } catch (error) {
+                console.error('Failed to initialize simulation:', error);
+            }
+        }
+
+        window.addEventListener('load', initSimulation);
+    </script>
+</body>
+</html>

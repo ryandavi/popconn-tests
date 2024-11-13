@@ -1,0 +1,55 @@
+body {
+  background-color: green;
+}
+
+.benefit {
+  width: 300px;
+  height: 300px;
+  position: relative;
+  filter: drop-shadow(3px 3px 0px rgba(0, 0, 0, 0.25));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.benefit .new-bolt-mask {
+  background-color: white;
+  font-size: 30px;
+}
+
+.new-bolt {
+  --bolt-margin: 20px;
+  --bolt-size: 15px;
+  --bolt-container-inner-margin: 20px;
+  --bolt-container-margin-left: calc(var(--bolt-margin) * 1 + var(--bolt-size) + var(--bolt-container-inner-margin));
+  --bolt-container-margin-top: var(--bolt-margin);
+  --bolt-container-min-height: calc(
+  	var(--bolt-size) * 2 +
+  	var(--bolt-container-margin-top) * 2 +
+  	var(--bolt-container-inner-margin) * 2
+  );
+  min-height: var(--bolt-container-min-height);
+  border-radius: var(--bolt-size);
+  overflow: hidden;
+}
+.new-bolt > .new-bolt-content {
+  padding: var(--bolt-container-margin-top) var(--bolt-container-margin-left);
+  position: relative;
+  z-index: 10000;
+}
+.new-bolt > .new-bolt-mask {
+  -webkit-mask-image: url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), linear-gradient(#000 0 0);
+          mask-image: url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), linear-gradient(#000 0 0);
+  -webkit-mask-size: var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), 100% 100%;
+          mask-size: var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: var(--bolt-margin) var(--bolt-margin), calc(100% - var(--bolt-margin)) var(--bolt-margin), var(--bolt-margin) calc(100% - var(--bolt-margin)), calc(100% - var(--bolt-margin)) calc(100% - var(--bolt-margin)), 0 0;
+          mask-position: var(--bolt-margin) var(--bolt-margin), calc(100% - var(--bolt-margin)) var(--bolt-margin), var(--bolt-margin) calc(100% - var(--bolt-margin)), calc(100% - var(--bolt-margin)) calc(100% - var(--bolt-margin)), 0 0;
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}/*# sourceMappingURL=bolt.css.map */

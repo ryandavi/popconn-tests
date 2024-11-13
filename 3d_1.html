@@ -1,0 +1,493 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="UTF-8">
+</head>
+
+<body>
+	<link rel="stylesheet" href="css/style.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<script src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/242637/TrackballProjectorDetector.js"></script>
+	<script src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/242637/AsciiEffect.js"></script>
+	<script>
+
+		// Configuration constants
+		const DEFAULT_CONFIG = {
+			segments: 200,
+			tubularSegments: 32,
+			baseRotationSpeed: 0.0002,
+			zeroGravityEffect: true,
+			enableControls: false,
+
+
+			pixelEffect: false,
+			pixel_resolution: 0.075, // smaller = bigger
+
+			asciiEffect: true,
+			ascii_resolution: 0.1, // higher = less ascii-like
+			ascii_invert: true,
+			ascii_characterSet: ' .",:;!~+-xmo*#W&8@▁▂▃▄▅▆▇█░▒▓ ░▒▓█₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹∞≠≈∩∪∫∬∭∮∯∰∱∲∳∀∁∂∃∄∅∆∇',
+			// ascii_characterSet: ' .:-+*=%@#',
+			ascii_characterSet: ' .\'`^",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
+			rotation_multiplier: 1.5,
+			mesh_scale_multiplier: 1.5,
+
+			onComplete: null
+		};
+
+		const FADE_CONFIG = {
+			fadeTotalDuration: 3000, // 3 seconds
+			fadeInDelay: 100,
+			fadeOutDelay: 0,
+			holdAnimationDuration: 5000 // 3 seconds
+		};
+
+		class TorusAnimation {
+			constructor(customConfig = {}) {
+				// Merge default config with custom config
+				this.config = { ...DEFAULT_CONFIG, ...customConfig };
+				this.fadeConfig = { ...FADE_CONFIG };
+
+				// Animation state
+				this.isAnimating = true;
+				this.startTime = null;
+				this.initialOpacity = 1;
+				this.isFadingIn = true;
+				this.isFadingOut = true;
+				this.animationPaused = false;
+				this.visibilityPauseTime = null;
+				this.remainingFadeTime = null;
+				this.currentAnimationPhase = null; // 'fadeIn', 'hold', 'fadeOut', or null
+
+				// Three.js components
+				this.container = null;
+				this.camera = null;
+				this.controls = null;
+				this.scene = null;
+				this.renderer = null;
+				this.effect = null;
+				this.torusMesh = null;
+
+
+				// Initialize
+				this.init();
+				this.setupEventListeners();
+				this.startAnimation();
+			}
+
+			init() {
+				this.setupContainer();
+				this.setupCamera();
+				this.setupControls();
+				this.setupScene();
+				this.setupLighting();
+				this.setupMesh();
+				this.setupRenderer();
+			}
+
+			setupContainer() {
+				this.container = document.createElement('div');
+				document.body.appendChild(this.container);
+			}
+
+			setupCamera() {
+				const width = window.innerWidth || 2;
+				const height = window.innerHeight || 2;
+				this.camera = new THREE.PerspectiveCamera(70, width / height, 1, 1000);
+				this.camera.position.y = 0; // 150
+				this.camera.position.x = 0;
+				this.camera.position.z = 500;
+			}
+
+			setupControls() {
+				if (this.config.enableControls) this.controls = new THREE.TrackballControls(this.camera);
+			}
+
+			setupScene() {
+				this.scene = new THREE.Scene();
+				this.setupEnvironmentMap();
+			}
+
+			setupEnvironmentMap() {
+				const cubeTextureLoader = new THREE.CubeTextureLoader();
+				const envMap = cubeTextureLoader.load([
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/px.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/nx.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/py.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/ny.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/pz.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/nz.jpg'
+				]);
+				this.scene.environment = envMap;
+			}
+
+			setupLighting() {
+				this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+				const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+				directionalLight.position.set(1, 1, 1);
+				this.scene.add(directionalLight);
+			}
+
+			setupMesh() {
+				const geometry = new THREE.TorusKnotGeometry(
+					100 * this.config.mesh_scale_multiplier,
+					20 * this.config.mesh_scale_multiplier,
+					this.config.segments,
+					this.config.tubularSegments
+				);
+
+				const material = new THREE.MeshStandardMaterial({
+					color: 0xffffff,
+					metalness: 0.9,
+					roughness: 0.1,
+					envMapIntensity: 1,
+					side: THREE.DoubleSide,
+					transparent: true,
+					opacity: this.initialOpacity
+				});
+
+				this.torusMesh = new THREE.Mesh(geometry, material);
+				this.scene.add(this.torusMesh);
+
+				// Initialize zero-gravity rotation
+				this.torusMesh.userData.rotationVelocity = new THREE.Vector3(
+					(Math.random() - 0.5) * 0.001,
+					(Math.random() - 0.5) * 0.001,
+					(Math.random() - 0.5) * 0.001
+				);
+			}
+
+			setupRenderer() {
+				const width = window.innerWidth || 2;
+				const height = window.innerHeight || 2;
+
+				this.renderer = new THREE.WebGLRenderer({ antialias: true });
+				this.renderer.setClearColor(0x000000);
+				this.renderer.setSize(width, height);
+
+				if (this.config.asciiEffect) {
+					this.effect = new THREE.AsciiEffect(
+						this.renderer, 
+						this.config.ascii_characterSet, 
+						{
+							invert: this.config.ascii_invert,
+							resolution: this.config.ascii_resolution
+						}
+					);
+					this.effect.setSize(width, height);
+					this.container.appendChild(this.effect.domElement);
+
+				}else if (this.config.pixelEffect) {
+
+					this.renderer.setPixelRatio(this.config.pixel_resolution);
+					this.renderer.domElement.style.imageRendering = 'pixelated';
+
+					this.container.appendChild(this.renderer.domElement);
+
+				} else {
+					this.container.appendChild(this.renderer.domElement);
+				}
+			}
+
+
+			
+
+			setupEventListeners() {
+				window.addEventListener('resize', this.onWindowResize.bind(this));
+				document.addEventListener("visibilitychange", this.handleVisibilityChange.bind(this));
+
+				// get button
+				const button = document.querySelector('#restart-animation');
+				// Add click handler if button exists
+				if (button) {
+					button.addEventListener('click', () => this.restartAnimation());
+				}
+
+			}
+
+			onWindowResize() {
+				const width = window.innerWidth;
+				const height = window.innerHeight;
+
+				this.camera.aspect = width / height;
+				this.camera.updateProjectionMatrix();
+				this.renderer.setSize(width, height);
+				if (this.effect) {
+					this.effect.setSize(width, height);
+				}
+			}
+
+			handleVisibilityChange() {
+				if (document.hidden) {
+					this.pauseAnimation();
+				} else {
+					this.resumeAnimation();
+				}
+			}
+
+			pauseAnimation() {
+				this.animationPaused = true;
+				this.visibilityPauseTime = performance.now();
+
+				// Store the current phase and progress
+				if (this.currentAnimationPhase) {
+					const elapsed = this.visibilityPauseTime - this.startTime;
+					this.remainingFadeTime = this.fadeConfig.fadeTotalDuration - elapsed;
+				}
+			}
+
+			resumeAnimation() {
+				this.animationPaused = false;
+
+				if (this.currentAnimationPhase) {
+					// Adjust the start time to account for the pause duration
+					const pauseDuration = performance.now() - this.visibilityPauseTime;
+					this.startTime = performance.now() - (this.fadeConfig.fadeTotalDuration - this.remainingFadeTime);
+
+					// Resume the current animation phase
+					switch (this.currentAnimationPhase) {
+						case 'fadeIn':
+							this.fadeIn();
+							break;
+						case 'fadeOut':
+							this.fadeOut();
+							break;
+						case 'hold':
+							this.startFadeOut();
+							break;
+					}
+				}
+			}
+
+			fadeIn() {
+				if (this.animationPaused) return;
+
+				this.currentAnimationPhase = 'fadeIn';
+				if (!this.startTime) this.startTime = performance.now();
+
+				const currentTime = performance.now();
+				const elapsed = currentTime - this.startTime;
+				const progress = Math.min(elapsed / this.fadeConfig.fadeTotalDuration, 1);
+
+				const easedProgress = Math.pow(progress, 3);
+				this.torusMesh.material.opacity = this.initialOpacity * easedProgress;
+
+				if (progress < 1) {
+					requestAnimationFrame(() => this.fadeIn());
+				} else {
+					this.torusMesh.material.opacity = this.initialOpacity;
+					this.currentAnimationPhase = 'hold';
+
+					if (this.isFadingOut && !this.animationPaused) {
+						this.startFadeOut();
+					}
+				}
+			}
+
+			fadeOut() {
+				if (this.animationPaused) return;
+
+				this.currentAnimationPhase = 'fadeOut';
+				if (!this.startTime) this.startTime = performance.now();
+
+				const currentTime = performance.now();
+				const elapsed = currentTime - this.startTime;
+				const progress = Math.min(elapsed / this.fadeConfig.fadeTotalDuration, 1);
+
+				const easedProgress = 1 - Math.pow(1 - progress, 9);
+				this.torusMesh.material.opacity = this.initialOpacity * (1 - easedProgress);
+
+				if (progress < 1) {
+					requestAnimationFrame(() => this.fadeOut());
+				} else {
+					this.torusMesh.material.opacity = 0;
+					this.currentAnimationPhase = null;
+					this.stopAnimation();
+
+					if(this.config.onComplete){
+						this.config.onComplete();
+					}
+				}
+			}
+
+			startFadeIn() {
+				this.torusMesh.material.opacity = 0;
+				setTimeout(() => {
+					if (!this.animationPaused) {
+						this.startTime = performance.now();
+						this.fadeIn();
+					}
+				}, this.fadeConfig.fadeInDelay);
+			}
+
+			startFadeOut() {
+				setTimeout(() => {
+					if (!this.animationPaused) {
+						this.startTime = performance.now();
+						this.torusMesh.material.opacity = this.initialOpacity;
+						this.fadeOut();
+					}
+				}, this.fadeConfig.holdAnimationDuration + this.fadeConfig.fadeOutDelay);
+			}
+
+			animate() {
+				if (this.isAnimating && !this.animationPaused) {
+					requestAnimationFrame(() => this.animate());
+					this.render();
+				}
+			}
+
+			render() {
+				if (this.config.zeroGravityEffect) {
+					this.updateZeroGravityEffect();
+				}
+
+				if (this.config.enableControls) this.controls.update();
+
+				if (this.config.asciiEffect) {
+					this.effect.render(this.scene, this.camera);
+				} else {
+					this.renderer.render(this.scene, this.camera);
+				}
+			}
+
+			updateZeroGravityEffect() {
+				const timer = performance.now() - this.constructor.initTime;
+
+				// Update mesh rotation
+				// this.torusMesh.rotation.x += this.torusMesh.userData.rotationVelocity.x;
+				// this.torusMesh.rotation.y += this.torusMesh.userData.rotationVelocity.y;
+				// this.torusMesh.rotation.z += this.torusMesh.userData.rotationVelocity.z;
+
+				// Update scene rotation
+				// this.scene.rotation.y = timer * 0.0005 * this.config.rotation_multiplier;
+				// this.scene.rotation.x = timer * 0.0005 * this.config.rotation_multiplier;
+				// this.scene.rotation.z = timer * 0.0005 * this.config.rotation_multiplier;
+
+
+				this.torusMesh.rotation.x += 0.01 / 2;
+				this.torusMesh.rotation.y += 0.005 / 2;
+				this.torusMesh.rotation.z += 0.05 / 2;
+
+
+			}
+
+			startAnimation() {
+				this.constructor.initTime = performance.now();
+				if (this.isFadingIn && !this.animationPaused) {
+					this.startFadeIn();
+				} else if (this.isFadingOut && !this.animationPaused) {
+					this.startFadeOut();
+				}
+				this.animate();
+			}
+
+			stopAnimation() {
+				this.isAnimating = false;
+			}
+
+			getTotalDuration() {
+				const fadeInTime = this.isFadingIn ?
+					(this.fadeConfig.fadeInDelay + this.fadeConfig.fadeTotalDuration) : 0;
+				const fadeOutTime = this.isFadingOut ?
+					(this.fadeConfig.fadeOutDelay + this.fadeConfig.holdAnimationDuration + this.fadeConfig.fadeTotalDuration) : 0;
+				return fadeInTime + fadeOutTime;
+			}
+
+			restartAnimation() {
+				// Reset all configurations to initial values - this was breaking it
+				// this.config = { ...this.initialConfig };
+
+				// Reset animation states
+				this.isAnimating = true;
+				this.startTime = null;
+				this.animationPaused = false;
+				this.visibilityPauseTime = null;
+				this.remainingFadeTime = null;
+				this.currentAnimationPhase = null;
+
+				// Reset mesh properties
+				if (this.torusMesh) {
+					// Reset position and rotation
+					this.torusMesh.rotation.set(0, 0, 0);
+					this.torusMesh.position.set(0, 0, 0);
+
+					// Reset material opacity
+					this.torusMesh.material.opacity = 0;
+
+					// Reset rotation velocity
+					this.torusMesh.userData.rotationVelocity = new THREE.Vector3(
+						(Math.random() - 0.5) * 0.001,
+						(Math.random() - 0.5) * 0.001,
+						(Math.random() - 0.5) * 0.001
+					);
+				}
+
+				// Reset scene rotation
+				if (this.scene) {
+					this.scene.rotation.set(0, 0, 0);
+				}
+
+				// Reset camera position
+				if (this.camera) {
+					this.camera.position.set(0, 150, 500);
+					this.camera.lookAt(0, 0, 0);
+				}
+
+				// Reset controls
+				if (this.config.enableControls && this.controls) {
+					this.controls.reset();
+				}
+
+				// Stop any ongoing animations
+				this.stopAnimation();
+
+				// Reset animation timing
+				this.constructor.initTime = performance.now();
+
+				// Start fresh animation cycle
+				this.isAnimating = true;
+				this.startAnimation();
+			}
+		}
+
+		// Create instance with default config
+		document.addEventListener("DOMContentLoaded", function() {
+			const torus = new TorusAnimation({
+				onComplete: () => console.log('Completed!')
+			});
+		});
+
+	</script>
+	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+		body {
+			font-family: 'Courier New', Courier, monospace;
+			font-weight: 700;
+			font-style: normal;
+			background-color: #000000;
+			margin: 0px;
+			overflow: hidden;
+			color: white;
+			text-shadow:
+				0 0 1ex white,
+				0 0 2px rgba(255, 255, 255, 0.8);
+		}
+
+		#restart-animation {
+			position: absolute;
+			top: 0;
+			left: 0;
+			margin: 20px;
+			padding: 10px 20px;
+			font-size: 16px;
+			font-weight: 400;
+		}
+	</style>
+
+	<!-- <button id="restart-animation">Restart Animation</button> -->
+
+</body>
+
+</html>

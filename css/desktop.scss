@@ -1,0 +1,156 @@
+
+
+.window {
+
+    height: auto;
+    width: 620px;
+    top: 20%;
+	color: white;
+	background-color: #333333;
+
+	>.window-header {
+		background-color: #221f1f;
+		padding: 5px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		white-space: nowrap;
+		>.window-title {
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+		>.window-buttons {
+			display: flex;
+			>.window-button {
+				width: 20px;
+				height: 20px;
+				margin-left: 5px;
+				background-size: 20px 20px;
+				background-repeat: no-repeat;
+				background-position: center;
+				background-color: white;
+				cursor: pointer;
+				color: red;
+
+			}
+		}
+	}
+	>.window-content {
+		overflow-y: auto;
+		
+		padding: 5px;
+		height: auto;
+		width: 80%;
+		margin: 0 auto;
+	}
+}
+
+.folders {
+
+	--folderColor: #70a1ff;
+	--folderColorDarker: #5d8df5;
+	--paperColor: #ffffff;
+
+	/* New variable for folder opening */
+	--folderOpenAmount: .5;
+	
+	display: grid;
+	padding: 20px;
+
+	>.folder {
+		padding: 20px;
+		outline: 1px solid red;
+
+		.folder-item {
+			transition: all 0.2s ease-in;
+			cursor: pointer;
+		  
+			>.folder__back {
+			  position: relative;
+			  width: 100%;
+			  aspect-ratio: 4 / 2.5;
+			  background: var(--folderColorDarker);
+			  border-radius: 0px 5px 5px 5px;
+			  
+			  //The thing on the left top
+			  &::after {
+				position: absolute;
+				bottom: 98%; //if 100% you can see a little gap on Chrome
+				left: 0;
+				content: "";
+				width: 40%;
+				aspect-ratio: 0.6 / 0.12;
+				background: var(--folderColorDarker);
+				border-radius: 5px 5px 0 0;
+				z-index: -1;
+			  }
+		  
+			  .paper {
+				position: absolute;
+				bottom: 10%;
+				left: 50%;
+				transform: translate(-50%, 10%);
+				width: 70%;
+				height: 80%;
+				background: var(--paperColor);
+				border-radius: 5px;
+				transition: all 0.3s ease-in-out;
+			  }
+		  
+			  .folder__front {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background: var(--folderColor);
+				border-radius: 5px;
+				transform-origin: bottom;
+				transition: all 0.3s ease-in-out;
+			  }
+			}
+		  
+			&:hover {
+			  transform: translateY(-8px);
+			}
+		  
+			&:hover .paper {
+			  transform: translate(-50%, 0%);
+			}
+			
+			//there are 2 parts for the front of folder
+			//one goes left and another goes right
+		  
+			&:hover .folder__front {
+				/* Use calc() to derive skew and scaleY from a single variable */
+				transform: skew(calc(var(--folderOpenAmount) * 25deg)) scaleY(calc(1 - var(--folderOpenAmount) * 0.6));
+			  }
+		
+			  &:hover .right {
+				/* Mirror the transformation for the right side */
+				transform: skew(calc(var(--folderOpenAmount) * -25deg)) scaleY(calc(1 - var(--folderOpenAmount) * 0.6));
+			  }
+		  }
+
+
+
+
+		
+	}
+	
+	@media (min-width: 600px) {
+		grid-template-columns: repeat(2, 1fr); // 2 columns for this breakpoint
+	}
+
+	@media (min-width: 900px) {
+		grid-template-columns: repeat(3, 1fr); // 3 columns for this breakpoint
+	}
+
+	@media (min-width: 1200px) {
+		grid-template-columns: repeat(4, 1fr); // 4 columns for this breakpoint
+	}
+
+	@media (min-width: 1600px) {
+		grid-template-columns: repeat(5, 1fr); // 5 columns for this breakpoint
+	}
+
+}

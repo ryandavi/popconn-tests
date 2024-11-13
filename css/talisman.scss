@@ -1,0 +1,36 @@
+.talisman {
+	// make sure SVG has preserveAspectRatio="none"
+    overflow: hidden;
+    aspect-ratio: 3 / 4;
+
+
+    img {
+        object-fit: cover!important;
+		width: 100%!important;
+		height: 100%!important;
+
+        mask-image: url('../images/talisman/talisman_1.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+    }
+
+    // Loop for all talismans
+    @for $i from 1 through 16 {
+        &[data-talisman='#{$i}'] img {
+            mask-image: url('../images/talisman/talisman_#{$i}.svg');
+        }
+    }
+
+    &.stretched-mask {
+        aspect-ratio: unset;
+
+
+        img {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+			object-fit: cover;
+        }
+    }
+}

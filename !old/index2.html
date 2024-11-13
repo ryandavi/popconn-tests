@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Alien Terminal</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+	<link rel="stylesheet" href="css/terminal.css">
+</head>
+
+<body>
+	<nav>
+		<h1> POPCONN <a href="#">
+				<img src="images/logo_white.svg" alt="POPCONN logo" title="POPCONN - INFINITE COLLABORATION">
+			</a>
+		</h1>
+	</nav>
+	<div id="terminal">
+		<span id="output"></span>
+		<!--<span id="cursor" class="cursor"></span>-->
+		<div id="terminal-input">
+			<label class="label console-message" for="input">
+				<span id="username" class="command-label user"></span>
+				<div class="message input-wrapper">
+					<input type="text" id="input" autocomplete="off" autocorrect="off" autocapitalize="off"
+						spellcheck="false" formnovalidate>
+					<span class="new-cursor visible" id="cursor"></span>
+				</div>
+			</label>
+		</div>
+	</div>
+	<button id="mute-button">Unmute</button>
+	<script>
+		class AlienTerminal {
+			constructor() {
+				this.TYPING_SPEED = 25;
+				this.FAST_PAUSE_AFTER_PUNCTUATION = 200;
+				this.SLOW_PAUSE_AFTER_PUNCTUATION = 400;
+				this.SYSTEM_SPEED = 10;
+				this.INPUT_DELAY = 100;
+
+				this.ENTER_KEY = 'Enter';
+				this.PASSWORD = 'alien123';
+
+				this.CONSOLE_NAME = 'POPCONN';
+				this.USER_NAME = 'USER';
+				this.NAME_DELIMITER = '>';
+
+				this.FAST_PUNCTUATION = ',:;';
+				this.SLOW_PUNCTUATION = '.?!';
+
+				this.synth = new Tone.Synth().toDestination();
+				this.lastPlayTime = 0;
+				this.minTimeBetweenSounds = 0.02;
+
+				this.startUpLogo = [
+					" ___  ___  ___  ___ ___  _  _ _  _ ",
+					"| _ \\/ _ \\| _ \\/ __/ _ \\| \\| | \\| |",
+					"|  _/ (_) |  _/ (_| (_) | .` | .` |",
+					"|_|  \\___/|_|  \\___\\___/|_|\\_|_|\\_|"
+				];
+
+				this.openingDialogue = [
+					"WELCOME TO INFINITE COLLABORATION.",
+					"WE'RE REVOLUTIONIZING THE CREATOR ECONOMY.",
+					"ENTER PASSWORD NOW."
+				];
+
+				this.commands = [
+					{
+						command: ["hi", "hello", "hey", "how are you", "whats up"],
+						type: "random",
+						response: ["Hello. How may I assist you?", "What do you seek?"]
+					},
+					{
+						command: ["no", "nope"],
+						response: ["Yes."]
+					},
+					{
+						command: ["yes", "yeah", "yep"],
+						response: ["No."]
+					},
+					{
+						command: ["help", "commands"],
+						response: [
+							"Available commands: hi, help, about, quit.",
+							"Enter the password at any time."
+						]
+					},
+					{
+						command: ["about", "popconn", "what is popconn", "what is this"],
+						type: "all",
+						response: this.openingDialogue
+					},
+					{
+						command: ["quit", "exit", "bye", "goodbye"],
+						response: ["Goodbye."]
+					}
+				];
+
+				this.isTyping = false;
+				this.isMuted = true;
+
+				this.elements = {
+					terminal: document.getElementById('terminal'),
+					output: document.getElementById('output'),
+					input: document.getElementById('input'),
+					terminalInput: document.getElementById('terminal-input'),
+					muteButton: document.getElementById('mute-button'),
+					username: document.getElementById('username')
+				};
+
+				this.typeNotes = ["C3", "D3"];
+
+				this.init();
+			}
+
+			init() {
+				this.setupEventListeners();
+				this.updateFontSize();
+				this.setupUsername();
+				this.runStartupSequence();
+			}
+
+			setupEventListeners() {
+				this.elements.input.addEventListener('keydown', this.handleInput.bind(this));
+				window.addEventListener('resize', this.updateFontSize.bind(this));
+				this.elements.muteButton.addEventListener('click', this.toggleMute.bind(this));
+			}
+
+			async handleInput(e) {
+				if (e.key === this.ENTER_KEY) {
+					e.preventDefault();
+					const userInput = this.elements.input.value.trim();
+
+					if (userInput) {
+						this.elements.input.value = '';
+						this.elements.terminalInput.classList.remove('visible');
+						await this.typeText(userInput, this.USER_NAME, true);
+						this.processInput(userInput);
+					}
+				}
+			}
+
+			updateFontSize() {
+				const fontSize = window.innerWidth <= 768 ? '12px' : '18px';
+				this.elements.terminal.style.fontSize = fontSize;
+			}
+
+			setupUsername() {
+				this.elements.username.appendChild(this.makeNameDelimiter(this.USER_NAME));
+			}
+
+			toggleMute() {
+				this.isMuted = !this.isMuted;
+				this.elements.muteButton.textContent = this.isMuted ? 'Unmute' : 'Mute';
+				if (!this.isMuted) {
+					Tone.start();
+				}
+			}
+
+			makeNameDelimiter(name) {
+				const spanName = document.createElement('span');
+				spanName.className = 'name';
+				spanName.textContent = name;
+
+				const spanDelimiter = document.createElement('span');
+				spanDelimiter.className = 'delimiter';
+				spanDelimiter.textContent = this.NAME_DELIMITER;
+
+				const container = document.createDocumentFragment();
+				container.appendChild(spanName);
+				container.appendChild(spanDelimiter);
+
+				return container;
+			}
+
+			async playTypeSound() {
+				if (!this.isMuted) {
+					const now = Tone.now();
+					if (now - this.lastPlayTime >= this.minTimeBetweenSounds) {
+						const randomNote = this.typeNotes[Math.floor(Math.random() * this.typeNotes.length)];
+						this.synth.triggerAttackRelease(randomNote, "32n", now);
+						this.lastPlayTime = now;
+					}
+				}
+			}
+
+			async playNewLineSound() {
+				if (!this.isMuted) {
+					const now = Tone.now();
+					if (now - this.lastPlayTime >= this.minTimeBetweenSounds) {
+						this.synth.triggerAttackRelease("G3", "16n", now);
+						this.lastPlayTime = now;
+					}
+				}
+			}
+
+			async typeText(text, who = null, auto = false) {
+				const lines = Array.isArray(text) ? text : text.split('\n');
+
+				if (lines.length > 0) {
+					this.elements.terminalInput.classList.remove('visible');
+
+					for (const currentText of lines) {
+						this.isTyping = true;
+						this.elements.input.disabled = true;
+
+						const messageWrapper = this.createMessageWrapper(who);
+						const message = messageWrapper.querySelector('.message');
+						const cursor = messageWrapper.querySelector('.new-cursor');
+
+						this.elements.output.appendChild(messageWrapper);
+
+						if (currentText.trim().length > 0 && who !== this.USER_NAME) {
+							this.playNewLineSound();
+						}
+
+						if (who === this.CONSOLE_NAME) {
+							await new Promise(resolve => setTimeout(resolve, this.FAST_PAUSE_AFTER_PUNCTUATION));
+						}
+
+						const displayText = who === this.CONSOLE_NAME ? currentText.toUpperCase() : currentText;
+
+						if (auto) {
+							message.textContent += displayText;
+							this.elements.terminal.scrollTop = this.elements.terminal.scrollHeight;
+						} else {
+							await this.typeTextCharByChar(message, displayText, who);
+						}
+
+						cursor.classList.remove('visible');
+
+						if (who === this.CONSOLE_NAME || who === this.USER_NAME) {
+							await new Promise(resolve => setTimeout(resolve, this.INPUT_DELAY));
+						}
+					}
+				}
+
+				this.isTyping = false;
+				this.elements.input.disabled = false;
+
+				await new Promise(resolve => setTimeout(resolve, this.INPUT_DELAY));
+
+				this.elements.terminalInput.classList.add('visible');
+				setTimeout(() => {
+					this.playNewLineSound();
+					this.elements.input.focus();
+				}, 0);
+			}
+
+			createMessageWrapper(who) {
+				const messageWrapper = document.createElement('div');
+				messageWrapper.classList.add('console-message', who?.toLowerCase() || 'system');
+
+				if (who === this.CONSOLE_NAME || who === this.USER_NAME) {
+					const commandLabel = document.createElement('span');
+					commandLabel.classList.add('command-label', 'console');
+					commandLabel.appendChild(this.makeNameDelimiter(who));
+					messageWrapper.appendChild(commandLabel);
+				}
+
+				const message = document.createElement('span');
+				message.classList.add('message');
+				messageWrapper.appendChild(message);
+
+				const cursor = document.createElement('span');
+				cursor.classList.add('new-cursor', 'visible');
+				cursor.innerHTML = '&nbsp;';
+				messageWrapper.appendChild(cursor);
+
+				return messageWrapper;
+			}
+
+			async typeTextCharByChar(messageElement, text, who) {
+				for (const char of text) {
+					if (!this.isTyping) break;
+
+					messageElement.innerHTML += char;
+					this.playTypeSound();
+
+					const delay = this.getTypeDelay(char, who);
+					await new Promise(resolve => setTimeout(resolve, delay));
+
+					this.elements.terminal.scrollTop = this.elements.terminal.scrollHeight;
+				}
+			}
+
+			getTypeDelay(char, who) {
+				if (who === "ASCII" || who === "SYSTEM") {
+					return this.SYSTEM_SPEED;
+				} else if (this.FAST_PUNCTUATION.includes(char)) {
+					return this.FAST_PAUSE_AFTER_PUNCTUATION;
+				} else if (this.SLOW_PUNCTUATION.includes(char)) {
+					return this.SLOW_PAUSE_AFTER_PUNCTUATION;
+				} else {
+					return this.TYPING_SPEED;
+				}
+			}
+
+			processInput(input) {
+				const matchedCommand = this.commands.find(cmd =>
+					cmd.command.some(command =>
+						command.toLowerCase().replace(/[^a-zA-Z0-9 ]/g, '').includes(input.toLowerCase().replace(/[^a-zA-Z0-9 ]/g, ''))
+					)
+				);
+
+				if (input === this.PASSWORD) {
+					this.typeText("Access granted. Redirecting...", this.CONSOLE_NAME);
+					setTimeout(() => {
+						window.location.href = "https://example.com/alien-dashboard";
+					}, 2000);
+				} else if (matchedCommand) {
+					if (matchedCommand.type === "random") {
+						const response = matchedCommand.response[Math.floor(Math.random() * matchedCommand.response.length)];
+						this.typeText(response, this.CONSOLE_NAME);
+					} else {
+						this.typeText(matchedCommand.response, this.CONSOLE_NAME);
+					}
+				} else {
+					this.typeText("Command not recognized. Type 'help' for available commands.", this.CONSOLE_NAME);
+				}
+			}
+
+			async startupMessage() {
+				await this.typeText("POPCONN [v0.0.1]", "ASCII");
+				await this.typeText(this.startUpLogo, "ASCII");
+				await this.typeText("© 2024. All Rights Reserved.", "STARTUP");
+				await this.typeText(" ", "ASCII");
+			}
+
+			async startDialogue() {
+				await this.typeText(this.openingDialogue, this.CONSOLE_NAME);
+			}
+
+			async runStartupSequence() {
+				await this.startupMessage();
+				await this.startDialogue();
+			}
+		}
+
+		// Initialize the AlienTerminal
+		document.addEventListener('DOMContentLoaded', () => {
+			new AlienTerminal();
+		});
+	</script>
+</body>
+
+</html>

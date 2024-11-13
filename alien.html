@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>POPCONN - INFINITE COLLABORATION</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+	<link rel="preconnect"
+	href="https://fonts.gstatic.com"
+	crossorigin />
+
+	<!-- We use the full link to the CSS file in the rest of the tags -->
+	<link rel="preload"
+		as="style"
+		href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" />
+
+	<link rel="stylesheet"
+		href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap"
+		media="print" onload="this.media='all'" />
+
+	<noscript>
+	<link rel="stylesheet"
+		href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" />
+	</noscript>
+
+
+	<link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/terminal.css">
+
+	<script src="js/terminal.js"></script>
+</head>
+
+<body id="console">
+
+	<nav>
+		<h1>
+			<span>POPCONN</span>
+			<a id="logo" href="#">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 216 22" alt="POPCONN logo" title="POPCONN - INFINITE COLLABORATION">
+					<g>
+					  <path class="st1" d="M13.8,11.9c2.9,0,4.4-1.8,4.4-3.9S16.6,4,13.8,4H5.1v7.8H13.8z M5.1,15.9V22H0V0h18.3l4.8,4.8v6L18,15.9H5.1z" />
+					  <path class="st1" d="M45.8,18.1c4.1,0,6.9-2.9,6.9-7.1c0-4.2-2.8-7.1-6.9-7.1h-8.1c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H45.8z M25.7,15.6V6.7L32.4,0h18.9l6.4,6.4v8.9L51,22H32.1L25.7,15.6z" />
+					  <path class="st1" d="M75.2,11.9c2.9,0,4.4-1.8,4.4-3.9S78.1,4,75.2,4h-8.6v7.8H75.2z M66.6,15.9V22h-5.1V0h18.3l4.8,4.8v6l-5.1,5.1H66.6z" />
+					  <path class="st1" d="M106.7,18.1c4.1,0,6.8-2.1,6.9-4.7h5v1.9l-6.7,6.7H93.6l-6.4-6.4V6.7L93.9,0h18.3l6.4,6.4v2.2h-5c0-2.6-2.7-4.7-6.9-4.7h-7.5c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H106.7" />
+					  <path class="st1" d="M141.3,18.1c4.1,0,6.9-2.9,6.9-7.1c0-4.2-2.8-7.1-6.9-7.1h-8.1c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H141.3z M121.3,15.6V6.7L128,0h18.9l6.4,6.4v8.9l-6.7,6.7h-18.9L121.3,15.6z" />
+					  <path class="st1" d="M179.2,0v13.4H179L163.2,0H157v22h5.1V5.3h0.2l16.1,13.6l0,3.2h5.9V0H179.2z" />
+					  <path class="st1" d="M210.9,0v13.4h-0.2L194.8,0h-6.1v22h5.1V5.3h0.2l16.1,13.6l0,3.2h5.9V0H210.9z" />
+					</g>
+				  </svg>
+			</a>
+		</h1>
+	</nav>
+
+	<div class="noise"></div>
+	<div class="overlay"></div>
+
+	<div id="terminal" class="terminal mask">
+		<span class="output" id="output"></span>
+		<!--<span id="cursor" class="cursor"></span>-->
+		<div class="terminal-input" id="terminal-input">
+			<label class="label console-message" for="input">
+				<span id="username" class="command-label user"></span>
+				<div class="message input-wrapper">
+					<input type="text" class="input" id="input" autocomplete="off" autocorrect="off" autocapitalize="off"
+						spellcheck="false" formnovalidate>
+					<span class="new-cursor visible" id="cursor"></span>
+				</div>
+			</label>
+		</div>
+	</div>
+	<button class="mute-button" id="mute-button">Unmute</button>
+
+
+</body>
+
+</html>

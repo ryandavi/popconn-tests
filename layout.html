@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>PopConn</title>
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<!-- We use the full link to the CSS file in the rest of the tags -->
+	<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" />
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" media="print"
+		onload="this.media='all'" />
+	<noscript>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" />
+	</noscript>
+	<link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/layout.css">
+	<link rel="stylesheet" href="css/talisman.css">
+	<link rel="stylesheet" href="css/folders.css">
+	<link rel="stylesheet" href="css/windows.css">
+	<link rel="stylesheet" href="css/faq.css">
+	<script src="js/windows.js"></script>
+	<script src="js/folders.js"></script>
+	<script src="js/menu.js"></script>
+	<script src="js/basic_typewriter.js"></script>
+</head>
+
+<body>
+	<div class="layout">
+		<header class="navbar">
+			<div class="navbar-left">
+				<a href="#" class="navbar-brand">
+					<svg class="shine" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 216 22" alt="PopConn logo"
+						title="PopConn - INFINITE COLLABORATION">
+						<g>
+							<path class="st1"
+								d="M13.8,11.9c2.9,0,4.4-1.8,4.4-3.9S16.6,4,13.8,4H5.1v7.8H13.8z M5.1,15.9V22H0V0h18.3l4.8,4.8v6L18,15.9H5.1z">
+							</path>
+							<path class="st1"
+								d="M45.8,18.1c4.1,0,6.9-2.9,6.9-7.1c0-4.2-2.8-7.1-6.9-7.1h-8.1c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H45.8z M25.7,15.6V6.7L32.4,0h18.9l6.4,6.4v8.9L51,22H32.1L25.7,15.6z">
+							</path>
+							<path class="st1"
+								d="M75.2,11.9c2.9,0,4.4-1.8,4.4-3.9S78.1,4,75.2,4h-8.6v7.8H75.2z M66.6,15.9V22h-5.1V0h18.3l4.8,4.8v6l-5.1,5.1H66.6z">
+							</path>
+							<path class="st1"
+								d="M106.7,18.1c4.1,0,6.8-2.1,6.9-4.7h5v1.9l-6.7,6.7H93.6l-6.4-6.4V6.7L93.9,0h18.3l6.4,6.4v2.2h-5c0-2.6-2.7-4.7-6.9-4.7h-7.5c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H106.7">
+							</path>
+							<path class="st1"
+								d="M141.3,18.1c4.1,0,6.9-2.9,6.9-7.1c0-4.2-2.8-7.1-6.9-7.1h-8.1c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H141.3z M121.3,15.6V6.7L128,0h18.9l6.4,6.4v8.9l-6.7,6.7h-18.9L121.3,15.6z">
+							</path>
+							<path class="st1"
+								d="M179.2,0v13.4H179L163.2,0H157v22h5.1V5.3h0.2l16.1,13.6l0,3.2h5.9V0H179.2z">
+							</path>
+							<path class="st1"
+								d="M210.9,0v13.4h-0.2L194.8,0h-6.1v22h5.1V5.3h0.2l16.1,13.6l0,3.2h5.9V0H210.9z"></path>
+						</g>
+					</svg>
+				</a>
+				<nav>
+					<input type="checkbox" id="navbar-toggle" class="navbar-toggle-input">
+					<label for="navbar-toggle" class="navbar-toggle" tabindex="0">
+						<span>&#9776;</span>
+					</label>
+					<ul class="navbar-menu">
+						<li><a href="#about">About</a></li>
+						<li><a href="#FAQ">FAQ</a></li>
+						<li><a href="#join">Join</a></li>
+						<li class="mobile-only">
+							<ul class="socials">
+								<li><a target="_blank" href="https://x.com/">X</a></li>
+								<li><a target="_blank" href="https://tiktok.com/">TikTok</a></li>
+								<li><a target="_blank" href="https://instagram.com/">Instagram</a></li>
+							</ul>
+						</li>
+					</ul>
+				</nav>
+			</div>
+			<div class="navbar-right">
+				<ul class="navbar-menu">
+					<li><a href="#">X</a></li>
+					<li><a href="#">TikTok</a></li>
+					<li><a href="#">IG</a></li>
+				</ul>
+				<div class="text">
+					<span id="clock" alt="Current Time"></span>
+				</div>
+			</div>
+		</header>
+		<div class="content">
+			<div class="hero-old">
+				<div class="hero-image"></div>
+				<div class="hero-layer"></div>
+				<video
+					src="https://cdn.prod.website-files.com/670785fed1f895f61b3c580b%2F67128200b807dbb72a069297_1_Hero-transcode.mp4"
+					muted="" autoplay="true" height="100%" width="width" loop="" style="border-radius:1.25rem;"
+					poster="https://cdn.prod.website-files.com/670785fed1f895f61b3c580b%2F67128200b807dbb72a069297_1_Hero-poster-00001.jpg"
+					playsinline="true" preload="auto" class="hero-video"></video>
+				<div class="hero-text">
+					<h1>PopConn</h1>
+					<p>>> WELCOME TO INFINITE COLLABORATION</p>
+				</div>
+				<div class="hero-credit">Digital Art by Jon Jacobsen</div>
+			</div>
+			<ul class="folders">
+				<li class="widget intro">
+					<div class="bolts bolt-overlay"></div>
+					<h3 class="typewriter">
+						<!-- <span class="delimiter">>> </span> -->
+						<span class="message">WELCOME TO INFINITE COLLABORATION.</span>
+					</h3>
+					<p class="typewriter">
+						<span class="message">We're revolutionizing the creator economy.</span>
+					</p>
+				</li>
+				<li class="folder">
+					<a href="#about">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">About PopConn</div>
+					</a>
+				</li>
+				<li class="folder">
+					<a href="#ecosystem">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">Our ecosystem</div>
+					</a>
+				</li>
+				<li class="folder">
+					<a href="#how">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">How it works</div>
+					</a>
+				</li>
+				<li class="folder">
+					<a href="#discover">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">Discover</div>
+					</a>
+				</li>
+				<li class="folder">
+					<a href="#council">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">PopConn Council</div>
+					</a>
+				</li>
+				<li class="folder">
+					<a href="#featured">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">Featured Creators</div>
+					</a>
+				</li>
+				<li class="folder">
+					<a href="#FAQ2">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">FAQ</div>
+					</a>
+				</li>
+				<li class="folder">
+					<a href="#join">
+						<img class="icon" src="images/folder.svg">
+						<div class="name">Join PopConn</div>
+					</a>
+				</li>
+			</ul>
+			<div class="windows">
+				<div class="window" data-name="ecosystem">
+					<div class="window-header">
+						<div class="window-title">The PopConn Ecosystem</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<p> Our ecosystem is built on three pillars that work together to create real opportunities:
+						</p>
+						<h3>The Foundation</h3>
+						<p>We're not just another platform – we're a movement. The PopConn Foundation takes creator
+							support beyond the platform. Through direct funding, industry connections, and professional
+							development, we're investing in the next generation of creative talent. Our global network
+							of mentors and partners helps turn creative potential into sustainable success.</p>
+						<h3>The Media Engine</h3>
+						<p>Get your work seen by the right eyes. POPCONN Media is your amplification engine, bridging
+							cultures from East to West. Our multi-channel approach means your content reaches further,
+							connects deeper, and converts better.</p>
+						<h3>The Commerce Revolution</h3>
+						<p>This is where creativity meets profit. Launch products with zero upfront cost. Host live
+							shopping events that convert. Set up custom revenue splits for collaborations in seconds.
+							Our advanced tools handle everything from manufacturing to marketing, so you can focus on
+							what you do best – creating. </p>
+					</div>
+				</div>
+				<div class="window" data-name="about">
+					<div class="window-header">
+						<div class="window-title">About PopConn</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<p>PopConn is built on a simple principle: the creator economy needs better technology.</p>
+						<h3>The Platform</h3>
+						<p>We've developed a platform that removes traditional barriers between creators and success. By
+							combining advanced collaboration tools, decentralized revenue sharing, and zero-cost
+							manufacturing, we're creating an ecosystem where creativity is instantly monetizable.</p>
+						<h3>What We're About</h3>
+						<p>We're building a new creative economy that works differently. Here, creators own and monetize
+							their work through blockchain-verified rights. Community members don't just follow – they
+							earn through participation and curation. Value flows directly between creators and
+							supporters, while smart contracts ensure everyone gets paid fairly for their contribution.
+						</p>
+						<h3>How We're Different</h3>
+						<p>While other platforms focus on views and likes, we focus on value creation. Our
+							infrastructure enables instant, transparent payments and verifiable ownership of digital
+							assets. When content trends, it's because the community chose it, not an algorithm. When
+							collaborations happen, revenue splits are automatic and guaranteed.</p>
+						<p>Our technology powers everything from AI-matched collaborations to zero-cost manufacturing.
+							Creators can launch products without upfront investment, host live shopping events that
+							convert, and protect their rights through automated management systems. Meanwhile, fans earn
+							real value for their taste and influence.</p>
+					</div>
+				</div>
+				<div class="window" data-name="join">
+					<div class="window-header">
+						<div class="window-title">Join PopConn</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<!-- PLACEHOLDER CONTENT -->
+						<p>Whether you're a creator ready to share your work or a fan excited to support new talent,
+							there's a place for you at PopConn.</p>
+						<div class="actions">
+							<button>Sign Up as a Creator</button>
+							<button>Join as a Fan</button>
+						</div>
+					</div>
+				</div>
+				<div class="window" data-name="FAQ">
+					<div class="window-header">
+						<div class="window-title">FAQ</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<!-- PLACEHOLDER CONTENT -->
+						<h3>For Creators</h3>
+						<h4>How do I make money on PopConn?</h4>
+						<p>Our blockchain infrastructure lets you monetize your creativity in multiple ways. Launch
+							products without upfront costs, host live shopping events, drop exclusive content, or
+							collaborate with other creators. Every transaction is instant and secure, with smart
+							contracts automatically handling revenue splits.</p>
+						<h4>How are there "zero upfront costs"?</h4>
+						<p>We handle manufacturing, storage, and shipping. You focus on design, we handle production.
+							The smart contract ensures you only pay when you make a sale – no inventory risk, no upfront
+							investment. It's that simple.</p>
+						<h4>How do collaborations work?</h4>
+						<p>Our AI matches you with creators who complement your style and goals. Once connected, our
+							tools make it easy to create together, with blockchain-verified contracts automatically
+							managing rights and revenue splits. No awkward money conversations, just pure creativity.
+						</p>
+						<h4>Do I keep my rights?</h4>
+						<p>Yes. Everything you create is registered on the blockchain, giving you verifiable ownership.
+							We just provide the tools to help you monetize it effectively.</p>
+						<h4>How do I get noticed?</h4>
+						<p>POPCONN Media amplifies creators who resonate with the community. Host live events,
+							collaborate with others, or drop exclusive content. Our decentralized trending system means
+							real engagement drives visibility, not algorithms.</p>
+						<h3>For Community Members</h3>
+						<h4>How do I earn rewards?</h4>
+						<p>Turn your taste into income. Support creators early, help projects go viral, or participate
+							in exclusive events. Our blockchain-based reward system means your influence has real,
+							tradeable value.</p>
+						<h4>What makes PopConn different?</h4>
+						<p>You're not just following – you're participating in the creative economy. Your support earns
+							you crypto rewards, your taste makes you money, and you help shape what's next in culture.
+							Everything is verified on-chain, so your contribution is always recognized.</p>
+						<h4>Can I really collaborate with my favorite creators?</h4>
+						<p>Absolutely. Join design sessions, get early access to drops, or attend virtual events. Smart
+							contracts ensure everyone who contributes gets credit and compensation.</p>
+						<h3>Technical Stuff</h3>
+						<h4>What is the blockchain?</h4>
+						<p>Blockchain technology powers what we do at PopConn, making it possible for creators to get
+							paid instantly, collaborate securely, and truly own their work.</p>
+						<p>Every transaction is secured and validated by a decentralized network, making it virtually
+							impossible to modify without detection. Think of it like a digital certificate of
+							authenticity that can't be altered or faked.</p>
+						</p>When you create or buy something on PopConn, blockchain ensures everyone gets credited and
+						paid automatically, with no middlemen or delays. It's what lets us guarantee your ownership
+						rights and handle payments securely without charging upfront fees.</p>
+						<h4>What are the costs?</h4>
+						<p>Free to join. We take a small percentage of transactions to maintain the platform. All fees
+							and splits are transparent and encoded in smart contracts.</p>
+					</div>
+				</div>
+				<div class="window" data-name="FAQ2">
+					<div class="window-header">
+						<div class="window-title">FAQ</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<!-- PLACEHOLDER CONTENT -->
+						<div class="faq-container">
+							<section class="section">
+								<h3 class="section-title">For Creators</h3>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>How do I make money on PopConn?</h4>
+									</summary>
+									<div class="answer">
+										<p>Our blockchain infrastructure lets you monetize your creativity in multiple
+											ways. Launch products without upfront costs, host live shopping events, drop
+											exclusive content, or collaborate with other creators. Every transaction is
+											instant and secure, with smart contracts automatically handling revenue
+											splits.</p>
+									</div>
+								</details>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>How are there "zero upfront costs"?</h4>
+									</summary>
+									<div class="answer">
+										<p>We handle manufacturing, storage, and shipping. You focus on design, we
+											handle production. The smart contract ensures you only pay when you make a
+											sale – no inventory risk, no upfront investment. It's that simple.</p>
+									</div>
+								</details>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>How do collaborations work?</h4>
+									</summary>
+									<div class="answer">
+										<p>Our AI matches you with creators who complement your style and goals. Once
+											connected, our tools make it easy to create together, with
+											blockchain-verified contracts automatically managing rights and revenue
+											splits. No awkward money conversations, just pure creativity.</p>
+									</div>
+								</details>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>Do I keep my rights?</h4>
+									</summary>
+									<div class="answer">
+										<p>Yes. Everything you create is registered on the blockchain, giving you
+											verifiable ownership. We just provide the tools to help you monetize it
+											effectively.</p>
+									</div>
+								</details>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>How do I get noticed?</h4>
+									</summary>
+									<div class="answer">
+										<p>POPCONN Media amplifies creators who resonate with the community. Host live
+											events, collaborate with others, or drop exclusive content. Our
+											decentralized trending system means real engagement drives visibility, not
+											algorithms.</p>
+									</div>
+								</details>
+							</section>
+							<section class="section">
+								<h3 class="section-title">For Community Members</h3>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>How do I earn rewards?</h4>
+									</summary>
+									<div class="answer">
+										<p>Turn your taste into income. Support creators early, help projects go viral,
+											or participate in exclusive events. Our blockchain-based reward system means
+											your influence has real, tradeable value.</p>
+									</div>
+								</details>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>What makes PopConn different?</h4>
+									</summary>
+									<div class="answer">
+										<p>You're not just following – you're participating in the creative economy.
+											Your support earns you crypto rewards, your taste makes you money, and you
+											help shape what's next in culture. Everything is verified on-chain, so your
+											contribution is always recognized.</p>
+									</div>
+								</details>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>Can I really collaborate with my favorite creators?</h4>
+									</summary>
+									<div class="answer">
+										<p>Absolutely. Join design sessions, get early access to drops, or attend
+											virtual events. Smart contracts ensure everyone who contributes gets credit
+											and compensation.</p>
+									</div>
+								</details>
+							</section>
+							<section class="section">
+								<h3 class="section-title">Technical Stuff</h3>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>What is the blockchain?</h4>
+									</summary>
+									<div class="answer">
+										<p>Blockchain technology powers what we do at PopConn, making it possible for
+											creators to get paid instantly, collaborate securely, and truly own their
+											work.</p>
+										<p>Every transaction is secured and validated by a decentralized network, making
+											it virtually impossible to modify without detection. Think of it like a
+											digital certificate of authenticity that can't be altered or faked.</p>
+										<p>When you create or buy something on PopConn, blockchain ensures everyone gets
+											credited and paid automatically, with no middlemen or delays. It's what lets
+											us guarantee your ownership rights and handle payments securely without
+											charging upfront fees.</p>
+									</div>
+								</details>
+								<details class="faq-item">
+									<summary class="question">
+										<h4>What are the costs?</h4>
+									</summary>
+									<div class="answer">
+										<p>Free to join. We take a small percentage of transactions to maintain the
+											platform. All fees and splits are transparent and encoded in smart
+											contracts.</p>
+									</div>
+								</details>
+							</section>
+						</div>
+					</div>
+				</div>
+				<div class="window" data-name="how">
+					<div class="window-header">
+						<div class="window-title">How It Works</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<!-- PLACEHOLDER CONTENT -->
+						<h3>Collaboration</h3>
+						<ul>
+							<li>AI-Powered Matching: Find your perfect creative partners</li>
+							<li>Secure Contracts: Protect your work and set custom royalties</li>
+							<li>Create Together: Use our tools to make something amazing</li>
+							<li>Share and Earn: Reach audiences and monetize your collaboration</li>
+						</ul>
+						<h3>Monetization</h3>
+						<ul>
+							<li>Direct Fan Support: Connect with your audience</li>
+							<li>IP Licensing: Earn from your creations and promote others</li>
+							<li>Product Creation: Design merch with zero upfront costs</li>
+							<li>Live Shopping: Sell directly to your fans in real-time</li>
+						</ul>
+						<h3>Community Engagement</h3>
+						<ul>
+							<li>Vote on Projects: Help decide what gets made</li>
+							<li>Earn Rewards: Get recognized for your contributions</li>
+							<li>Exclusive Access: Go behind the scenes with your favorite creators</li>
+							<li>Co-Create: Bring your ideas to life with artists you admire</li>
+						</ul>
+					</div>
+				</div>
+				<div class="window" data-name="discover">
+					<div class="window-header">
+						<div class="window-title">Discover</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<!-- PLACEHOLDER CONTENT -->
+						<p>Discover Content Here</p>
+					</div>
+				</div>
+				<div class="window" data-name="council">
+					<div class="window-header">
+						<div class="window-title">PopConn Council</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<!-- PLACEHOLDER CONTENT -->
+						<p>Industry vanguards providing guidance and mentorship to empower your creative journey</p>
+						<div class="council-members">
+							<div class="talisman" data-talisman="2">
+								<img
+									src="https://cdn.prod.website-files.com/67079167f72124ae7f8e9c5d/670928ad668c86b5b187ed5e_council_4.avif">
+							</div>
+							<div class="talisman" data-talisman="6">
+								<img
+									src="https://cdn.prod.website-files.com/67079167f72124ae7f8e9c5d/670928692ed8076be4dbd4f8_council_1.avif">
+							</div>
+							<div class="talisman" data-talisman="12">
+								<img
+									src="https://cdn.prod.website-files.com/67079167f72124ae7f8e9c5d/67092896994543d8a3748774_council_3-p-500.avif">
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="window" data-name="featured">
+					<div class="window-header">
+						<div class="window-title">Featured Creators</div>
+						<div class="window-buttons">
+							<div class="window-button close" tabindex="0">×</div>
+						</div>
+					</div>
+					<div class="window-content">
+						<!-- PLACEHOLDER CONTENT -->
+						<p>Discover global pop and sub-culture talent across art, fashion, music, tech, and beyond.</p>
+					</div>
+				</div>
+			</div>
+			<button class="close-all-windows" id="close-all-windows" tabindex="0">Close Windows</button>
+		</div>
+		<footer class="footer">
+			<ul class="logo">
+				<li>
+					<svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 216 22" alt="PopConn logo"
+						title="PopConn - INFINITE COLLABORATION">
+						<g>
+							<path class="st1"
+								d="M13.8,11.9c2.9,0,4.4-1.8,4.4-3.9S16.6,4,13.8,4H5.1v7.8H13.8z M5.1,15.9V22H0V0h18.3l4.8,4.8v6L18,15.9H5.1z">
+							</path>
+							<path class="st1"
+								d="M45.8,18.1c4.1,0,6.9-2.9,6.9-7.1c0-4.2-2.8-7.1-6.9-7.1h-8.1c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H45.8z M25.7,15.6V6.7L32.4,0h18.9l6.4,6.4v8.9L51,22H32.1L25.7,15.6z">
+							</path>
+							<path class="st1"
+								d="M75.2,11.9c2.9,0,4.4-1.8,4.4-3.9S78.1,4,75.2,4h-8.6v7.8H75.2z M66.6,15.9V22h-5.1V0h18.3l4.8,4.8v6l-5.1,5.1H66.6z">
+							</path>
+							<path class="st1"
+								d="M106.7,18.1c4.1,0,6.8-2.1,6.9-4.7h5v1.9l-6.7,6.7H93.6l-6.4-6.4V6.7L93.9,0h18.3l6.4,6.4v2.2h-5c0-2.6-2.7-4.7-6.9-4.7h-7.5c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H106.7">
+							</path>
+							<path class="st1"
+								d="M141.3,18.1c4.1,0,6.9-2.9,6.9-7.1c0-4.2-2.8-7.1-6.9-7.1h-8.1c-4.2,0-6.9,2.9-6.9,7.1c0,4.2,2.7,7.1,6.9,7.1H141.3z M121.3,15.6V6.7L128,0h18.9l6.4,6.4v8.9l-6.7,6.7h-18.9L121.3,15.6z">
+							</path>
+							<path class="st1"
+								d="M179.2,0v13.4H179L163.2,0H157v22h5.1V5.3h0.2l16.1,13.6l0,3.2h5.9V0H179.2z">
+							</path>
+							<path class="st1"
+								d="M210.9,0v13.4h-0.2L194.8,0h-6.1v22h5.1V5.3h0.2l16.1,13.6l0,3.2h5.9V0H210.9z"></path>
+						</g>
+					</svg>
+				</li>
+			</ul>
+			<ul class="socials">
+				<li><a target="_blank" href="https://x.com/">X</a></li>
+				<li><a target="_blank" href="https://tiktok.com/">TikTok</a></li>
+				<li><a target="_blank" href="https://instagram.com/">Instagram</a></li>
+			</ul>
+			<ul class="us">
+				<li><a href="about.html">About Us</a></li>
+				<li><a href="contact.html">Contact Us</a></li>
+			</ul>
+			<ul class="terms">
+				<li><a href="#">Terms</a></li>
+				<li><a href="#">Privacy Policy</a></li>
+			</ul>
+		</footer>
+	</div>
+	<script>
+		document.addEventListener("DOMContentLoaded", function () {
+
+			
+			function updateClock() {
+				const now = new Date();
+				const clock = document.getElementById('clock');
+				clock.textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+			}
+
+			updateClock();
+			setInterval(updateClock, 1000);
+
+
+			// Initialize the animator
+			const folderAnimator = new FolderAnimator({
+				threshold: 0.2,      // When 20% of the element is visible
+				staggerDelay: 150,    // 100ms delay between each folder animation
+				initialDelay: 350
+			});
+
+
+			const menu = new MenuController();
+
+			const typewriter = new Typewriter();
+			typewriter.init();
+
+
+			document.querySelectorAll('.faq-item').forEach(item => {
+				item.addEventListener('click', (e) => {
+					document.querySelectorAll('.faq-item[open]').forEach(openItem => {
+						if (openItem !== item) {
+							openItem.removeAttribute('open');
+						}
+					});
+				});
+			});
+
+
+
+		});
+
+
+
+	</script>
+</body>
+
+</html>

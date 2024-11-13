@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Chrome Logo Effect</title>
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+			background: #000;
+		}
+
+		canvas {
+			position: fixed;
+			top: 0;
+			left: 0;
+			image-rendering: smooth;
+			opacity: 0;
+			transition: opacity 3s;
+		}
+
+		.noise {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			z-index: 1000;
+			opacity: 0;
+			transition: opacity 3s;
+			background-image: url(data:image/png;base64,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);
+		}
+
+		canvas.visible {
+			opacity: 1;
+		}
+
+		canvas.visible~.noise {
+			opacity: 1;
+		}
+	</style>
+</head>
+
+<body>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+	<script>
+
+
+		class ChromeLogoEffect {
+			constructor() {
+				// Configurable constants
+				this.PLANE_SCALE = .5;
+				this.DISPLACEMENT_ANIMATION_DELAY = 2000;
+				this.MAX_DISPLACEMENT = .4;
+				this.DISPLACEMENT_ANIMATION_DURATION = 4000;
+				this.ROTATION_SENSITIVITY = 0.000125; // smaller = less
+				this.GYRO_SENSITIVITY = 0.03;
+				this.FLASH_INTERVAL_MIN = 3000;
+				this.FLASH_INTERVAL_MAX = 8000;
+				this.FLASH_DURATION = 1500;
+				this.SHADOW_MAP_SIZE = 2048;
+
+				this.time = 0;
+
+				// create div with nosie class and add it to body
+				let noise = document.createElement('div');
+				noise.classList.add('noise');
+				document.body.appendChild(noise);
+
+
+				this.init();
+				this.setupScene();
+				this.loadTextures().then(() => {
+					this.createMaterials();
+					this.createPlane();
+					this.setupEvents();
+					this.animate();
+
+
+
+					//add visible class to canvas
+					let canvas = document.querySelector('canvas');
+					canvas.classList.add('visible');
+
+
+
+
+					// delay animation
+					setTimeout(() => {
+						this.startDisplacementAnimation();
+					}, this.DISPLACEMENT_ANIMATION_DELAY);
+
+					// this.scheduleNextFlash();
+				});
+			}
+
+			init() {
+				this.scene = new THREE.Scene();
+				this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+				this.renderer = new THREE.WebGLRenderer({
+					antialias: true,
+					powerPreference: "high-performance"
+				});
+
+				this.renderer.shadowMap.enabled = true;
+				this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+				this.renderer.setSize(window.innerWidth, window.innerHeight);
+				this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 10));
+				document.body.appendChild(this.renderer.domElement);
+
+				this.camera.position.z = 100;
+				this.currentDisplacement = 0;
+				this.targetRotationX = 0;
+				this.targetRotationY = 0;
+				this.clock = new THREE.Clock();
+
+				const cubeTextureLoader = new THREE.CubeTextureLoader();
+				this.envMap = cubeTextureLoader.load([
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/px.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/nx.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/py.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/ny.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/pz.jpg',
+					'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/nz.jpg'
+				]);
+				this.scene.environment = this.envMap;
+			}
+
+			setupScene() {
+				this.setupLights();
+			}
+
+
+			createMainLight(name, x, y, z) {
+				const light = new THREE.DirectionalLight(0xffffff, 1);
+				light.position.set(x, y, z);
+				light.castShadow = true;
+				light.shadow.mapSize.width = this.SHADOW_MAP_SIZE;
+				light.shadow.mapSize.height = this.SHADOW_MAP_SIZE;
+				light.shadow.camera.near = 0.1;
+				light.shadow.camera.far = 500;
+				light.shadow.camera.left = -200;
+				light.shadow.camera.right = 200;
+				light.shadow.camera.top = 200;
+				light.shadow.camera.bottom = -200;
+				light.shadow.bias = -0.0001;
+				return light;
+			}
+
+			setupLights() {
+				// Ambient base light
+				const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+				this.scene.add(ambientLight);
+
+				// Main front lights
+				const frontMain = this.createMainLight('frontMain', 50, 50, 50);
+				const frontFillLeft = this.createMainLight('frontFillLeft', -50, 50, 50);
+				const frontFillRight = this.createMainLight('frontFillRight', 50, -50, 50);
+				const frontFillBottom = this.createMainLight('frontFillBottom', 0, -50, 50);
+
+				// Set fill light intensities
+				frontFillLeft.intensity = 0.3;
+				frontFillRight.intensity = 0.3;
+				frontFillBottom.intensity = 0.3;
+
+				// Add lights to scene
+				this.scene.add(frontMain, frontFillLeft, frontFillRight, frontFillBottom);
+			}
+
+			async loadTextures() {
+				const textureLoader = new THREE.TextureLoader();
+				return new Promise((resolve) => {
+					textureLoader.load('images/dp4.jpg', (texture) => {
+						this.displacementMap = texture;
+						this.displacementMap.wrapS = THREE.RepeatWrapping;
+						this.displacementMap.wrapT = THREE.RepeatWrapping;
+
+						this.displacementMap.minFilter = THREE.LinearMipMapLinearFilter;
+						this.displacementMap.magFilter = THREE.LinearFilter;
+
+						const { width, height } = this.displacementMap.image;
+						this.displacementMap.aspect = width / height;
+
+
+						resolve();
+					});
+				});
+			}
+
+			createMaterials() {
+				// Enhanced chrome material
+				this.material = new THREE.MeshPhysicalMaterial({
+					color: 0x888888,
+					metalness: 1,  // Slightly reduced for better shadow visibility
+					roughness: .5,  // Increased slightly for better shadow contrast
+					envMap: this.envMap,
+					envMapIntensity: 1.0,
+
+					bumpMap: this.displacementMap,
+					bumpScale: 0,
+					reflectivity: 1.0,
+
+					//clearcoat: 1.0,
+					//clearcoatRoughness: 0.1,
+					side: THREE.FrontSide // Render both sides
+				});
+
+
+			}
+
+			createPlane() {
+				const aspectRatio = this.displacementMap.image.width / this.displacementMap.image.height;
+
+				// Calculate size to maintain aspect ratio while fitting screen
+				let planeWidth, planeHeight;
+				if (window.innerWidth / window.innerHeight > aspectRatio) {
+					planeHeight = window.innerHeight * this.PLANE_SCALE;
+					planeWidth = planeHeight * aspectRatio;
+				} else {
+					planeWidth = window.innerWidth * this.PLANE_SCALE;
+					planeHeight = planeWidth / aspectRatio;
+				}
+
+				const planeGeometry = new THREE.PlaneGeometry(
+					planeWidth,
+					planeHeight,
+					512,  // High segment count for smooth displacement
+					512
+				);
+
+				this.plane = new THREE.Mesh(planeGeometry, this.material);
+				this.plane.receiveShadow = true;
+				this.plane.castShadow = true;
+				this.scene.add(this.plane);
+			}
+
+			setupEvents() {
+				window.addEventListener('resize', this.onWindowResize.bind(this));
+				window.addEventListener('mousemove', this.onMouseMove.bind(this));
+
+				if (window.DeviceOrientationEvent) {
+					window.addEventListener('deviceorientation', this.onDeviceOrientation.bind(this));
+				}
+			}
+
+			onWindowResize() {
+				this.camera.aspect = window.innerWidth / window.innerHeight;
+				this.camera.updateProjectionMatrix();
+				this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+				// Recalculate plane size
+				const aspectRatio = this.displacementMap.image.width / this.displacementMap.image.height;
+				let planeWidth, planeHeight;
+
+				if (window.innerWidth / window.innerHeight > aspectRatio) {
+					planeHeight = window.innerHeight * this.PLANE_SCALE;
+					planeWidth = planeHeight * aspectRatio;
+				} else {
+					planeWidth = window.innerWidth * this.PLANE_SCALE;
+					planeHeight = planeWidth / aspectRatio;
+				}
+
+				this.plane.geometry = new THREE.PlaneGeometry(
+					planeWidth,
+					planeHeight,
+					512,
+					512
+				);
+			}
+
+			onMouseMove(event) {
+				const centerX = window.innerWidth / 2;
+				const centerY = window.innerHeight / 2;
+
+				this.targetRotationY = (event.clientX - centerX) * this.ROTATION_SENSITIVITY;
+				this.targetRotationX = (event.clientY - centerY) * this.ROTATION_SENSITIVITY;
+			}
+
+			onDeviceOrientation(event) {
+				if (event.beta && event.gamma) {
+					this.targetRotationX = event.beta * this.GYRO_SENSITIVITY;
+					this.targetRotationY = event.gamma * this.GYRO_SENSITIVITY;
+				}
+			}
+
+			startDisplacementAnimation() {
+				const startTime = performance.now();
+
+				const animate = (currentTime) => {
+					const elapsed = currentTime - startTime;
+					const progress = Math.min(elapsed / this.DISPLACEMENT_ANIMATION_DURATION, 1);
+
+					const eased = progress < 0.5
+						? 2 * progress * progress
+						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+					this.material.bumpScale = eased * this.MAX_DISPLACEMENT;
+
+					if (progress < 1) {
+						requestAnimationFrame(animate);
+					}
+				};
+
+				requestAnimationFrame(animate);
+			}
+
+			createFlash() {
+
+				let intensity = 2;
+				let angle = Math.PI / 2;
+				let penumbra = 0.1;
+				let distance = 6000;
+				let height = this.PLANE_SCALE * 100;
+				let depth = 300;
+
+				// Create a more spread out spotlight with wider angle and more penumbra
+				const flashLight = new THREE.SpotLight(
+					0xffffff,
+					intensity,
+					distance,
+					angle,
+					penumbra,
+					1
+				);
+
+				// Start well outside the left frame
+				const startX = -window.innerWidth * this.PLANE_SCALE * 2;
+				const endX = window.innerWidth * this.PLANE_SCALE * 2;
+
+				// Position higher and further back for a more dramatic sweep
+				flashLight.position.set(
+					startX,
+					height,
+					depth
+				);
+
+				flashLight.castShadow = true;
+				flashLight.shadow.mapSize.width = 1024;
+				flashLight.shadow.mapSize.height = 1024;
+
+				this.scene.add(flashLight);
+
+				const startTime = performance.now();
+				const totalDistance = endX - startX;
+
+				const animateFlash = (currentTime) => {
+					const elapsed = currentTime - startTime;
+					const progress = elapsed / this.FLASH_DURATION;
+
+					if (progress <= 1) {
+						// Smooth movement from left to right
+						flashLight.position.x = startX + (totalDistance * progress);
+
+						// Fade in and out smoothly
+						flashLight.intensity = intensity * Math.sin(progress * Math.PI);
+
+						requestAnimationFrame(animateFlash);
+					} else {
+						this.scene.remove(flashLight);
+					}
+				};
+
+				requestAnimationFrame(animateFlash);
+			}
+
+			scheduleNextFlash() {
+				const nextFlashDelay = Math.random() *
+					(this.FLASH_INTERVAL_MAX - this.FLASH_INTERVAL_MIN) +
+					this.FLASH_INTERVAL_MIN;
+
+				setTimeout(() => {
+					this.createFlash();
+					this.scheduleNextFlash();
+				}, nextFlashDelay);
+			}
+
+			animate() {
+				requestAnimationFrame(this.animate.bind(this));
+
+				this.plane.rotation.x += (this.targetRotationX - this.plane.rotation.x) * 0.05;
+				this.plane.rotation.y += (this.targetRotationY - this.plane.rotation.y) * 0.05;
+
+
+				const additionalRotationSpeed = 0.01; // Adjust for desired circular motion speed
+				const amplitude = 0.002; // bigger = more
+				this.time += additionalRotationSpeed;
+				this.plane.rotation.x += Math.sin(this.time) * amplitude; // Adjust amplitude if needed
+				this.plane.rotation.y += Math.cos(this.time) * amplitude;
+
+				this.renderer.render(this.scene, this.camera);
+			}
+		}
+
+		window.addEventListener('load', () => {
+			new ChromeLogoEffect();
+		});
+	</script>
+</body>
+
+</html>

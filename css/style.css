@@ -1,0 +1,164 @@
+@charset "UTF-8";
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body,
+input,
+textarea,
+button,
+select {
+  font-family: "Space Mono", monospace;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.shine {
+  -webkit-mask-image: linear-gradient(-75deg, rgba(0, 0, 0, 0.3) 30%, #000 50%, rgba(0, 0, 0, 0.3) 70%);
+          mask-image: linear-gradient(-75deg, rgba(0, 0, 0, 0.3) 30%, #000 50%, rgba(0, 0, 0, 0.3) 70%);
+  -webkit-mask-size: 200%;
+          mask-size: 200%;
+  animation: shine 3s linear infinite;
+}
+
+@keyframes shine {
+  from {
+    -webkit-mask-position: 150%;
+            mask-position: 150%;
+  }
+  to {
+    -webkit-mask-position: -50%;
+            mask-position: -50%;
+  }
+}
+@keyframes shine-background {
+  from {
+    background-position: 150%;
+  }
+  to {
+    background-position: -50%;
+  }
+}
+.shine-inline {
+  background: linear-gradient(-75deg, rgba(255, 255, 255, 0.3) 30%, rgb(255, 255, 255) 50%, rgba(255, 255, 255, 0.3) 70%);
+  background-size: 200%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  animation: shine-inline 3s linear infinite;
+}
+
+@keyframes shine-inline {
+  from {
+    background-position: 150%;
+  }
+  to {
+    background-position: -50%;
+  }
+}
+.typewriter {
+  position: relative;
+}
+.typewriter .message {
+  position: relative;
+}
+.typewriter .new-cursor {
+  position: relative;
+  display: inline;
+  height: 1em;
+  opacity: 0;
+  width: 0;
+  transition: opacity 0.3s ease;
+}
+.typewriter .new-cursor:after {
+  content: "█";
+  animation: blink 0.7s infinite;
+  position: absolute;
+  left: 0.25em;
+}
+.typewriter .new-cursor.visible {
+  opacity: 1;
+}
+.typewriter.typing .new-cursor {
+  animation: blink 0.5s infinite;
+}
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.bolts {
+  --bolt-margin: 10px;
+  --bolt-size: 15px;
+  --bolt-container-inner-margin: 10px;
+  --bolt-container-margin-left: calc(var(--bolt-margin) * 1 + var(--bolt-size) + var(--bolt-container-inner-margin));
+  --bolt-container-margin-top: var(--bolt-margin);
+  --bolt-container-min-height: calc(var(--bolt-size) * 3);
+  position: relative;
+  padding: var(--bolt-container-margin-top) var(--bolt-container-margin-left);
+  /* Set four SVGs, one for each corner */
+  background-image: url("../images/bolt_dark.svg"), url("../images/bolt_dark.svg"), url("../images/bolt_dark.svg"), url("../images/bolt_dark.svg");
+  background-size: var(--bolt-size) var(--bolt-size);
+  /* Adjust size as needed */
+  background-repeat: no-repeat;
+  min-height: var(--bolt-container-min-height);
+  /* Offset each corner to add padding */
+  background-position: var(--bolt-margin) var(--bolt-margin), calc(100% - var(--bolt-margin)) var(--bolt-margin), var(--bolt-margin) calc(100% - var(--bolt-margin)), calc(100% - var(--bolt-margin)) calc(100% - var(--bolt-margin));
+  /* Bottom-right */
+}
+.bolts.bolt-overlay {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+}
+
+.new-bolt {
+  --bolt-margin: 20px;
+  --bolt-size: 15px;
+  --bolt-container-inner-margin: 20px;
+  --bolt-container-margin-left: calc(var(--bolt-margin) * 1 + var(--bolt-size) + var(--bolt-container-inner-margin));
+  --bolt-container-margin-top: var(--bolt-margin);
+  --bolt-container-min-height: calc(var(--bolt-size) * 2 + var(--bolt-container-margin-top) * 2 + var(--bolt-container-inner-margin) * 2);
+  min-height: var(--bolt-container-min-height);
+  border-radius: var(--bolt-size);
+  overflow: hidden;
+}
+.new-bolt > .new-bolt-content {
+  position: relative;
+  z-index: 10000;
+}
+.new-bolt > .new-bolt-mask {
+  -webkit-mask-image: url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), linear-gradient(#000 0 0);
+          mask-image: url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), url("../images/bolt_mask_white.svg"), linear-gradient(#000 0 0);
+  -webkit-mask-size: var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), 100% 100%;
+          mask-size: var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), var(--bolt-size) var(--bolt-size), 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: var(--bolt-margin) var(--bolt-margin), calc(100% - var(--bolt-margin)) var(--bolt-margin), var(--bolt-margin) calc(100% - var(--bolt-margin)), calc(100% - var(--bolt-margin)) calc(100% - var(--bolt-margin)), 0 0;
+          mask-position: var(--bolt-margin) var(--bolt-margin), calc(100% - var(--bolt-margin)) var(--bolt-margin), var(--bolt-margin) calc(100% - var(--bolt-margin)), calc(100% - var(--bolt-margin)) calc(100% - var(--bolt-margin)), 0 0;
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}/*# sourceMappingURL=style.css.map */

@@ -1,0 +1,224 @@
+.windows {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.windows > .window {
+  height: auto;
+  max-width: 800px;
+  width: 80%;
+  pointer-events: all;
+  box-shadow: var(--border-width) var(--border-width) 0px var(--shadow-color);
+  border: var(--border-width) solid var(--window-border-color);
+  border-radius: calc(var(--border-radius) * 2); /* Multiply radius by 2 */
+  overflow: hidden;
+  background-color: var(--window-header-background-color);
+  display: none;
+  position: absolute;
+  transition: none;
+  /* Enable hardware acceleration */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
+  /* Ensure crisp text */
+  -webkit-font-smoothing: antialiased;
+  /* Accessibility improvements */
+  outline: none;
+}
+.windows > .window[data-name=council] .council-members {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 20px;
+  margin-top: var(--padding);
+}
+.windows > .window[data-name=join] .actions {
+  display: flex;
+  gap: 10px;
+  margin-top: var(--padding);
+}
+.windows > .window[data-name=join] .actions > button {
+  all: unset;
+  width: 100%;
+  border: var(--border-width-small) solid var(--button-border-color);
+  padding: 0;
+  text-align: center;
+  padding: var(--padding);
+  border-radius: var(--border-radius);
+  color: var(--button-text-color);
+  cursor: pointer;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+.windows > .window[data-name=join] .actions > button:hover {
+  color: var(--button-hover-text-color);
+  background-color: var(--button-hover-background-color);
+}
+.windows > .window.dragging {
+  transition: transform 0.3s;
+}
+.windows > .window.window-frontmost {
+  outline: var(--border-width-small) solid var(--window-front-outline-color);
+}
+.windows > .window > .window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  white-space: nowrap;
+  cursor: grab;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  color: var(--window-header-text-color);
+}
+.windows > .window > .window-header:active {
+  cursor: grabbing;
+}
+.windows > .window > .window-header > .window-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: var(--padding-small) var(--padding);
+  margin-bottom: var(--border-width);
+}
+.windows > .window > .window-header > .window-buttons {
+  display: flex;
+  position: relative;
+  top: calc(-1 * var(--border-radius));
+}
+.windows > .window > .window-header > .window-buttons > .window-button {
+  border-radius: var(--border-radius);
+  color: var(--window-header-text-color);
+  cursor: pointer;
+  font-size: 40px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.windows > .window > .window-header > .window-buttons > .window-button:hover {
+  transform: scale(1.1);
+}
+.windows > .window > .window-content {
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: var(--window-content-background-color);
+  color: var(--window-content-text-color);
+  padding: var(--padding);
+  height: auto;
+  width: 100%;
+  border-radius: var(--border-radius);
+  max-height: calc(80dvh - var(--header-height));
+  height: -moz-fit-content;
+  height: fit-content;
+  scrollbar-width: thin;
+  scrollbar-color: var(--shadow-color) transparent;
+  overflow: overlay;
+  filter: grayscale(1);
+}
+.windows > .window > .window-content h3 {
+  font-size: 2em;
+  line-height: 1.25;
+  border-bottom: var(--border-width) solid var(--window-divider-color);
+  padding-bottom: var(--padding-small);
+}
+.windows > .window > .window-content h4 {
+  font-size: 1.5em;
+  line-height: 1.25;
+}
+.windows > .window > .window-content ul, .windows > .window > .window-content p {
+  font-weight: 500;
+}
+.windows > .window > .window-content ul + h4,
+.windows > .window > .window-content h4 + ul,
+.windows > .window > .window-content h4 + p {
+  margin-top: var(--padding-small);
+}
+.windows > .window > .window-content h3 + ul,
+.windows > .window > .window-content ul + h3,
+.windows > .window > .window-content p + h3,
+.windows > .window > .window-content h3 + p,
+.windows > .window > .window-content p + img,
+.windows > .window > .window-content p + p,
+.windows > .window > .window-content h3 + h4,
+.windows > .window > .window-content p + h4 {
+  margin-top: var(--padding);
+}
+.windows > .window > .window-content ul {
+  margin-left: var(--padding);
+}
+.windows > .window > .window-content img {
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  border-radius: var(--border-radius);
+}
+
+.windows > .window {
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform-origin: center center;
+  top: 5px;
+  width: 0;
+  height: 0;
+  /* Set up the transitions */
+  transition: opacity 0.2s var(--easing), top 0.1s var(--easing);
+}
+.windows > .window.visible {
+  width: 80%;
+  height: auto;
+  opacity: 1;
+  top: 0px;
+  visibility: visible;
+  pointer-events: all;
+}
+
+.close-all-windows {
+  bottom: 0;
+  right: 0;
+  margin: var(--padding);
+  background-color: var(--page-background-color);
+  color: var(--text-color);
+  border: var(--border-width-small) solid var(--text-color);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: var(--border-radius);
+  outline: var(--border-width-small) solid var(--page-background-color);
+  text-transform: uppercase;
+  z-index: 10000;
+  position: sticky;
+  bottom: var(--padding);
+  left: 100%;
+  margin: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s var(--easing), visibility 0.2s var(--easing), transform 0.3s var(--easing);
+  transform: translateY(5px);
+}
+.close-all-windows.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+  transform: translateY(0);
+}
+.close-all-windows:hover {
+  background-color: var(--text-color);
+  color: var(--page-background-color);
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --padding: 16px;
+    --padding-small: 8px;
+  }
+  .windows > .window {
+    font-size: 14px;
+  }
+}/*# sourceMappingURL=windows.css.map */

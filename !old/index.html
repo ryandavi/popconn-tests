@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Alien Terminal</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+	<link rel="stylesheet" href="css/terminal.css">
+</head>
+
+<body>
+
+	<nav>
+		<h1>
+			POPCONN
+			<a href="#">
+				<img src="images/logo_white.svg" alt="POPCONN logo" title="POPCONN - INFINITE COLLABORATION">
+			</a>
+		</h1>
+	</nav>
+
+
+	<div id="terminal">
+		<span id="output"></span>
+		<!--<span id="cursor" class="cursor"></span>-->
+		<div id="terminal-input">
+			<label class="label console-message" for="input">
+				<span id="username"class="command-label user"></span>
+				<div class="message input-wrapper">
+						<input type="text" id="input" a
+						utocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" formnovalidate>
+					<span class="new-cursor visible" id="cursor"></span>
+				</div>
+			</label>
+		</div>
+	</div>
+
+	<button id="mute-button">Unmute</button>
+
+	<script>
+		const TYPING_SPEED = 25; // ms per character
+		const FAST_PAUSE_AFTER_PUNCTUATION = 200; // ms
+		const SLOW_PAUSE_AFTER_PUNCTUATION = 400; // ms
+		const SYSTEM_SPEED = 10; // ms per character
+		const INPUT_DELAY = 100; // 2 seconds delay before showing input
+
+		const ENTER_KEY = 'Enter';
+		const PASSWORD = 'alien123';
+
+		const CONSOLE_NAME = 'POPCONN';
+		const USER_NAME = 'USER';
+		const NAME_DELIMITER = '>';
+
+		const FAST_PUNCTUATION = ',:;';
+		const SLOW_PUNCTUATION = '.?!';
+
+		// Sound
+		const synth = new Tone.Synth().toDestination();
+		let lastPlayTime = 0;
+		const minTimeBetweenSounds = 0.02; // 50 milliseconds
+
+		let startUpLogo = [
+			" ___  ___  ___  ___ ___  _  _ _  _ ",
+			"| _ \\/ _ \\| _ \\/ __/ _ \\| \\| | \\| |",
+			"|  _/ (_) |  _/ (_| (_) | .` | .` |",
+			"|_|  \\___/|_|  \\___\\___/|_|\\_|_|\\_|"
+		];
+
+		const openingDialogue = [
+			"WELCOME TO INFINITE COLLABORATION.",
+			"WE’RE REVOLUTIONIZING THE CREATOR ECONOMY.",
+			"ENTER PASSWORD NOW."
+		];
+
+		const commands = [
+			{
+				command: [
+					"hi",
+					"hii",
+					"hello",
+					"hey",
+					"heyy",
+					"how are you",
+					"whats up",
+					"how are you doing",
+					"whats going on"
+				],
+				type: "random",
+				response: [
+					"Hello. How may I assist you?", 
+					"What do you seek?"
+				]
+			},
+			{
+				command: [
+					"no",
+					"nope",
+					"noo",
+					"nooo",
+					"nooooo",
+					"noooooo"
+				],
+				response: [
+					"Yes."
+				]
+			},
+			{
+				command: [
+					"yes",
+					"yeah",
+					"yep",
+					"yess",
+					"yup",
+				],
+				response: [
+					"No."
+				]
+			},
+			{
+				command: [
+					"help",
+					"help me",
+					"commands",
+					"controls",
+					"command",
+					"control",
+				],
+				response: [
+					"Available commands: hi, help, about, quit.",
+					"Enter the password at any time."
+				]
+			},
+			{
+				command: [
+					"about", 
+					"popconn", 
+					"what is popconn",
+					"what does popconn mean",
+					"what is this", 
+					"what is this project",
+					"what is the point",
+					"what is the point of this project",
+					"what is the purpose",
+					"what is the purpose of this project",
+					"what are you", 
+					"who are you", 
+					"where am i", 
+					"whats going on", 
+					"im scared"
+				],
+				type: "all",
+				response: [
+					"WELCOME TO INFINITE COLLABORATION.",
+					"WE’RE REVOLUTIONIZING THE CREATOR ECONOMY.",
+					"ENTER PASSWORD NOW."
+				]
+			},
+			{
+				command: [
+					"quit", 
+					"exit", 
+					"bye", 
+					"goodbye"
+				],
+				response: ["Goodbye."]
+			}
+		];
+
+		let isTyping = false;
+		let currentDialogueIndex = 0;
+		let isMuted = true;
+
+		const terminalElement = document.getElementById('terminal');
+		const outputElement = document.getElementById('output');
+		const inputElement = document.getElementById('input');
+		// const cursorElement = document.getElementById('cursor');
+		const terminalInputElement = document.getElementById('terminal-input');
+		const muteButton = document.getElementById('mute-button');
+
+		const typeNotes = ["C3", "D3"];
+
+		async function playTypeSound() {
+			if (!isMuted) {
+				const now = Tone.now();
+				if (now - lastPlayTime >= minTimeBetweenSounds) {
+					// Choose a random note from the typeNotes array
+					const randomNote = typeNotes[Math.floor(Math.random() * typeNotes.length)];
+					synth.triggerAttackRelease(randomNote, "32n", now);
+					lastPlayTime = now;
+				}
+			}
+		}
+
+		/*
+		async function playTypeSound() {
+			if (!isMuted) {
+				const now = Tone.now();
+				if (now - lastPlayTime >= minTimeBetweenSounds) {
+					synth.triggerAttackRelease("C4", "32n", now);
+					lastPlayTime = now;
+				}
+			}
+		}
+		*/
+
+		async function playNewLineSound() {
+			if (!isMuted) {
+				const now = Tone.now();
+				if (now - lastPlayTime >= minTimeBetweenSounds) {
+					synth.triggerAttackRelease("G3", "16n", now);
+					lastPlayTime = now;
+				}
+			}
+		}
+
+		function makeNameDelimiter(name) {
+			const spanName = document.createElement('span');
+			spanName.className = 'name';
+			spanName.textContent = name;
+
+			const spanDelimiter = document.createElement('span');
+			spanDelimiter.className = 'delimiter';
+			spanDelimiter.textContent = NAME_DELIMITER;
+
+			const container = document.createDocumentFragment();
+			container.appendChild(spanName);
+			container.appendChild(spanDelimiter);
+
+			return container;
+		}
+
+
+		async function typeText(text, who = null, auto = false) {
+			let lines = [];
+			
+			if(Array.isArray(text)){
+				lines = text;
+			}else{
+				lines = text.split('\n');
+			}
+
+			if(lines.length > 0){
+				// Hide terminal input when typing starts
+				terminalInputElement.classList.remove('visible');
+
+				for(let i = 0; i < lines.length; i++){
+					let currentText = lines[i];
+
+					isTyping = true;
+					inputElement.disabled = true;
+
+					const messageWrapper = document.createElement('div');
+					messageWrapper.classList.add('console-message');
+
+					if(who == CONSOLE_NAME){
+						messageWrapper.classList.add('console');
+					}else if(who == USER_NAME){
+						messageWrapper.classList.add('user');
+					}else if(who == "ASCII"){
+						messageWrapper.classList.add('ascii');
+					}else{
+						messageWrapper.classList.add('system');
+					}
+
+					// create message
+					const message = document.createElement('span');
+					message.classList.add('message');
+
+					// add label
+					if(who == CONSOLE_NAME || who == USER_NAME){
+						const commandLabel = document.createElement('span');
+						commandLabel.classList.add('command-label', 'console');
+						commandLabel.appendChild(makeNameDelimiter(who));
+						messageWrapper.appendChild(commandLabel);
+					}
+
+					// append message
+					messageWrapper.appendChild(message);
+
+					// add cursor
+					const cursor = document.createElement('span');
+					cursor.classList.add('new-cursor');
+					cursor.classList.add('visible');
+					cursor.innerHTML = '&nbsp;';
+					messageWrapper.appendChild(cursor);
+
+					// add it to output
+					outputElement.appendChild(messageWrapper);
+
+					// play sound if line isn't empty
+					if(currentText.trim().length > 0 && who != USER_NAME){
+						playNewLineSound();
+					}
+					
+
+					// delay before starting
+					if(who == CONSOLE_NAME){
+						await new Promise(resolve => setTimeout(resolve, FAST_PAUSE_AFTER_PUNCTUATION));
+					}
+					
+
+					if(who == CONSOLE_NAME){
+						currentText = currentText.toUpperCase();
+					}
+					
+
+					if(auto){
+						message.textContent += currentText;
+						terminalElement.scrollTop = terminalElement.scrollHeight;
+					}else{
+						
+						for (let i = 0; i < currentText.length; i++) {
+							if (!isTyping) break;
+
+							message.innerHTML += currentText[i];
+							
+							playTypeSound();
+
+
+							if(who == "ASCII"){
+								await new Promise(resolve => setTimeout(resolve, SYSTEM_SPEED));
+							}else if (FAST_PUNCTUATION.includes(currentText[i])) {
+								await new Promise(resolve => setTimeout(resolve, FAST_PAUSE_AFTER_PUNCTUATION));
+							}else if(SLOW_PUNCTUATION.includes(currentText[i])){
+								await new Promise(resolve => setTimeout(resolve, SLOW_PAUSE_AFTER_PUNCTUATION));
+							}else{
+								if(who == "SYSTEM"){
+									await new Promise(resolve => setTimeout(resolve, SYSTEM_SPEED));
+								}else{
+									await new Promise(resolve => setTimeout(resolve, TYPING_SPEED));
+								}
+								
+							}
+							
+							terminalElement.scrollTop = terminalElement.scrollHeight;
+						}
+					}
+
+					// remove cursor
+					const newCursor = messageWrapper.querySelector('.new-cursor');
+					if (newCursor) {
+						newCursor.classList.remove('visible');
+					}
+
+
+					// Delay before showing input
+					if(who == CONSOLE_NAME || who == USER_NAME){
+						await new Promise(resolve => setTimeout(resolve, INPUT_DELAY));
+					}
+					
+
+				}
+			}
+
+			isTyping = false;
+			inputElement.disabled = false;
+
+			// Delay before showing input
+			await new Promise(resolve => setTimeout(resolve, INPUT_DELAY));
+
+			terminalInputElement.classList.add('visible');
+			// Use setTimeout to ensure the focus happens after the element is visible
+			setTimeout(() => {
+				playNewLineSound();
+				inputElement.focus();
+			}, 0);
+		}
+
+
+		function processInput(input) {
+
+
+			const matchedCommand = commands.find(cmd =>
+				cmd.command.some(command => 
+					command.toLowerCase().replace(/[^a-zA-Z0-9 ]/g, '').includes(input.toLowerCase().replace(/[^a-zA-Z0-9 ]/g, ''))
+				)
+			);
+
+
+			if (input === PASSWORD) {
+				// case sensitive
+				typeText("Access granted. Redirecting...", CONSOLE_NAME);
+				setTimeout(() => {
+					window.location.href = "https://example.com/alien-dashboard";
+				}, 2000);
+			} else if (matchedCommand) {
+				if (matchedCommand.type && matchedCommand.type === "random") {
+					const response = matchedCommand.response[Math.floor(Math.random() * matchedCommand.response.length)];
+					typeText(response, CONSOLE_NAME);
+				} else {
+					typeText(matchedCommand.response, CONSOLE_NAME);
+				}
+			} else {
+				typeText("Command not recognized. Type 'help' for available commands.", CONSOLE_NAME);
+			}
+		}
+
+		inputElement.addEventListener('keydown', async (e) => {
+			if (e.key === ENTER_KEY) {
+				e.preventDefault();
+				const userInput = inputElement.value.trim();
+
+				if(userInput){
+					// empty user input
+					inputElement.value = '';
+
+					// hide terminal input
+					terminalInputElement.classList.remove('visible');
+
+					// write userinput to terminal
+					await typeText(userInput , USER_NAME, true);
+
+					processInput(userInput);
+				}
+
+
+			}
+		});
+
+
+
+		const updateFontSize = () => {
+			const fontSize = window.innerWidth <= 768 ? '12px' : '18px';
+			terminalElement.style.fontSize = fontSize;
+		};
+
+		window.addEventListener('resize', updateFontSize);
+
+		// Run on page load
+		updateFontSize();
+
+		// get #username
+		const usernameElement = document.getElementById('username');
+		usernameElement.appendChild(makeNameDelimiter(USER_NAME));
+
+		muteButton.addEventListener('click', () => {
+			isMuted = !isMuted;
+			muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+			if (!isMuted) {
+				Tone.start();
+			}
+		});
+
+		async function startupMessage() {
+			// await typeText("BOOTING UP...", "STARTUP");
+			await typeText("POPCONN [v0.0.1]", "ASCII");
+			await typeText(startUpLogo, "ASCII");
+			await typeText("© 2024. All Rights Reserved.", "STARTUP");
+			await typeText(" ", "ASCII");
+		}
+
+		async function startDialogue() {
+			await typeText(openingDialogue, CONSOLE_NAME);
+		}
+
+		// New async function to run the startup sequence
+		async function runStartupSequence() {
+			await startupMessage();
+			await startDialogue();
+		}
+
+		// Call the new function to start the sequence
+		runStartupSequence();
+	</script>
+</body>
+
+</html>
