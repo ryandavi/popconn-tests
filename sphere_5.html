@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Volumetric Sphere Billboards</title>
+	<style>
+		/* Base styles */
+		body {
+			margin: 0;
+			overflow: hidden;
+			background: #000;
+		}
+
+		canvas {
+			display: block;
+			width: 100vw;
+			height: 100vh;
+			touch-action: none;
+			/* Prevents default touch behaviors */
+		}
+
+		/* Container styles */
+		.sphere-container {
+			position: relative;
+			width: 100%;
+			height: 100vh;
+
+			opacity: 0;
+			transition: opacity 1s ease-out;
+		}
+
+		.sphere-container.loaded {
+			opacity: 1;
+		}
+
+		/* Loading indicator */
+		.sphere-loading {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			color: white;
+			font-family: system-ui, -apple-system, sans-serif;
+			font-size: clamp(16px, 4vw, 24px);
+			text-align: center;
+			background: rgba(0, 0, 0, 0.8);
+			padding: 1rem 1.5rem;
+			border-radius: 8px;
+			z-index: 1000;
+			backdrop-filter: blur(4px);
+			transition: opacity 0.2s ease-out;
+			/* Prevent layout shift during loading */
+			min-width: 200px;
+			height: 24px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		/* Optional loading animation */
+		.sphere-loading::after {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			height: 2px;
+			background: white;
+			animation: loadingBar 2s ease-in-out infinite;
+			opacity: 0.5;
+		}
+
+		@keyframes loadingBar {
+			0% {
+				width: 0;
+			}
+
+			50% {
+				width: 100%;
+			}
+
+			100% {
+				width: 0;
+			}
+		}
+
+		/* Stats display */
+		.sphere-stats {
+			position: fixed;
+			top: 1rem;
+			left: 1rem;
+			color: white;
+			font-family: ui-monospace, monospace;
+			font-size: 12px;
+			background: rgba(0, 0, 0, 0.5);
+			padding: 0.5rem;
+			border-radius: 4px;
+			pointer-events: none;
+			z-index: 100;
+			backdrop-filter: blur(2px);
+		}
+
+		/* Mobile optimizations */
+		@media (max-width: 768px) {
+			.sphere-stats {
+				font-size: 10px;
+				padding: 0.25rem;
+			}
+
+			.sphere-loading {
+				padding: 0.75rem 1rem;
+				font-size: clamp(14px, 3vw, 20px);
+			}
+		}
+
+		/* Prevent text selection during interaction */
+		.no-select {
+			user-select: none;
+			-webkit-user-select: none;
+		}
+
+		/* Reduced motion */
+		@media (prefers-reduced-motion: reduce) {
+			.sphere-container {
+				animation-duration: 0.01ms !important;
+				animation-iteration-count: 1 !important;
+				transition-duration: 0.01ms !important;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div id="sphere-container"></div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+	<script>
+		class VolumetricSphereBillboards {
+			constructor(config = {}) {
+				// Default configuration with performance-based adjustments
+				this.CONFIG = {
+					numberOfPoints: this.isLowPerformance() ? 100 : 250,
+					maxRadius: 6,
+					minScale: 0.1,
+					maxScale: 2,
+					rotationSpeed: 0.0055,
+					waveIntensity: this.isLowPerformance() ? 0.05 : 0.1,
+					waveSpeed: this.isLowPerformance() ? 0.5 : 1.0,
+					cameraMinDistance: 3,
+					cameraMaxDistance: 20,
+					zoomSpeed: 0.1,
+					initialDistance: 4.37,
+					perspective: 80,
+					updateInterval: this.isLowPerformance() ? 2 : 1, // Skip frames on low-end devices
+					quality: this.isLowPerformance() ? 0.75 : 1, // Reduce quality on low-end devices
+					debug: false,
+
+					// New scaling options
+					scaleMode: 'exponential', // 'linear', 'exponential', or 'inverse'
+					scaleExponent: .25, // Only used when scaleMode is 'exponential'
+
+					...config
+				};
+
+				this.loadingState = {
+					imagesLoaded: 0,
+					billboardsCreated: 0,
+					visualProgress: 0,
+					startTime: 0,
+					isFadingOut: false
+				};
+
+				// Initialize properties
+				this.camera = null;
+				this.scene = null;
+				this.renderer = null;
+				this.billboards = [];
+				this.billboardsContainer = null;
+				this.loadedImages = 0;
+				this.lastTime = 0;
+				this.frameCount = 0;
+				this.fps = 0;
+				this.isRunning = false;
+				this.boundAnimate = this.animate.bind(this);
+				this.boundHandleResize = this.handleResize.bind(this);
+				this.boundHandleWheel = this.handleWheel.bind(this);
+
+				// Performance monitoring
+				this.fpsHistory = [];
+				this.lastPerformanceCheck = 0;
+				this.performanceCheckInterval = 5000;
+			}
+
+			isLowPerformance() {
+				return (
+					/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+					navigator.hardwareConcurrency <= 4 ||
+					(typeof window !== 'undefined' && window.devicePixelRatio > 2)
+				);
+			}
+
+			async init(containerId, imageUrls) {
+				if (!imageUrls?.length) {
+					throw new Error('Image URLs are required');
+				}
+
+				this.container = document.getElementById(containerId);
+				if (!this.container) {
+					throw new Error(`Container with id "${containerId}" not found`);
+				}
+
+				this.container.classList.add('sphere-container', 'no-select');
+				this.setupDOM();
+
+				// Start showing loading progress immediately
+				this.loadingState.startTime = performance.now();
+				this.updateLoadingVisuals();
+
+				// Begin actual loading
+				await this.preloadImages(imageUrls);
+				this.setupScene();
+				this.setupRenderer();
+				this.setupCamera();
+				this.setupLighting();
+				await this.createBillboards(imageUrls);
+				this.setupEventListeners();
+
+				// Ensure smooth transition to completion
+				await this.finishLoading();
+
+				this.isRunning = true;
+				this.animate();
+			}
+
+			async preloadImages(imageUrls) {
+				const textureLoader = new THREE.TextureLoader();
+				textureLoader.crossOrigin = 'anonymous';
+
+				// Create a cache for the textures
+				this.textureCache = new Map();
+
+				const loadTexture = (url) => {
+					return new Promise((resolve, reject) => {
+						textureLoader.load(
+							url,
+							(texture) => {
+								this.loadingState.imagesLoaded++;
+								this.textureCache.set(url, texture);
+								resolve(texture);
+							},
+							(progress) => {
+								// Progress callback if needed
+							},
+							reject
+						);
+					});
+				};
+
+				// Load all textures in parallel
+				const uniqueUrls = [...new Set(imageUrls)];
+				await Promise.all(uniqueUrls.map(loadTexture));
+			}
+
+
+
+			setupDOM() {
+				const loading = document.createElement('div');
+				loading.className = 'sphere-loading';
+				this.container.appendChild(loading);
+				this.loadingElement = loading;
+
+				const stats = document.createElement('div');
+				stats.className = 'sphere-stats';
+				stats.style.display = this.CONFIG.debug ? 'block' : 'none';
+				this.container.appendChild(stats);
+				this.statsElement = stats;
+			}
+
+			setupScene() {
+				this.scene = new THREE.Scene();
+				this.billboardsContainer = new THREE.Object3D();
+				this.scene.add(this.billboardsContainer);
+			}
+
+			setupRenderer() {
+				this.renderer = new THREE.WebGLRenderer({
+					antialias: !this.isLowPerformance(),
+					powerPreference: 'high-performance'
+				});
+
+				this.renderer.setPixelRatio(this.CONFIG.quality * (window.devicePixelRatio || 1));
+				this.renderer.setSize(window.innerWidth, window.innerHeight);
+				this.container.appendChild(this.renderer.domElement);
+			}
+
+			setupCamera() {
+				this.camera = new THREE.PerspectiveCamera(
+					this.CONFIG.perspective,
+					window.innerWidth / window.innerHeight,
+					0.1,
+					1000
+				);
+				this.camera.position.z = this.CONFIG.initialDistance;
+			}
+
+			setupLighting() {
+				const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+				this.scene.add(ambientLight);
+			}
+
+			setupEventListeners() {
+				window.addEventListener('resize', this.boundHandleResize, { passive: true });
+				this.renderer.domElement.addEventListener('wheel', this.boundHandleWheel, { passive: false });
+
+				// Touch events for mobile
+				let lastTouchDistance = 0;
+
+				this.renderer.domElement.addEventListener('touchstart', (e) => {
+					if (e.touches.length === 2) {
+						lastTouchDistance = Math.hypot(
+							e.touches[0].clientX - e.touches[1].clientX,
+							e.touches[0].clientY - e.touches[1].clientY
+						);
+					}
+				}, { passive: true });
+
+				this.renderer.domElement.addEventListener('touchmove', (e) => {
+					if (e.touches.length === 2) {
+						const distance = Math.hypot(
+							e.touches[0].clientX - e.touches[1].clientX,
+							e.touches[0].clientY - e.touches[1].clientY
+						);
+
+						const delta = lastTouchDistance - distance;
+						this.handleZoom(delta * 0.01);
+						lastTouchDistance = distance;
+
+						e.preventDefault();
+					}
+				}, { passive: false });
+			}
+
+			async createBillboards(imageUrls) {
+				for (let i = 0; i < this.CONFIG.numberOfPoints; i++) {
+					const position = this.calculateSpherePosition(i);
+					const texture = this.textureCache.get(imageUrls[i % imageUrls.length]);
+
+					if (texture) {
+						this.createBillboard(texture, position);
+						this.loadingState.billboardsCreated++;
+					}
+
+					// Allow UI to update every few iterations
+					if (i % 10 === 0) {
+						await new Promise(resolve => setTimeout(resolve, 0));
+					}
+				}
+			}
+
+
+			async finishLoading() {
+    // Signal that we're in the final fade out phase
+    this.loadingState.isFadingOut = true;
+    
+    // Set to 100% immediately
+    this.loadingState.visualProgress = 100;
+    this.loadingElement.textContent = `Loading... 100%`;
+
+    // Ensure smooth fade out
+    const fadeOutDuration = 500;
+    const startTime = performance.now();
+
+    return new Promise(resolve => {
+        const fadeOut = () => {
+            const currentTime = performance.now();
+            const progress = (currentTime - startTime) / fadeOutDuration;
+
+            if (progress >= 1) {
+                this.loadingElement.style.opacity = '0';
+				
+                setTimeout(() => {
+                    this.loadingElement.style.display = 'none';
+					this.container.classList.add('loaded');
+                    resolve();
+                }, 200);
+                return;
+            }
+
+            this.loadingElement.style.opacity = (1 - progress).toString();
+            requestAnimationFrame(fadeOut);
+        };
+
+        fadeOut();
+    });
+}
+
+updateLoadingVisuals() {
+    // Don't update if we're in fade out phase
+    if (!this.loadingElement || this.loadingState.isFadingOut) return;
+
+    const currentTime = performance.now();
+    const elapsedTime = currentTime - this.loadingState.startTime;
+
+    // Show initial quick progress from 0% to 30% in the first 500ms
+    if (elapsedTime < 500) {
+        this.loadingState.visualProgress = (elapsedTime / 500) * 30;
+    } 
+    // Then progress based on actual loading
+    else {
+        const totalItems = (this.textureCache?.size || 0) + this.CONFIG.numberOfPoints;
+        const loadedItems = this.loadingState.imagesLoaded + this.loadingState.billboardsCreated;
+        
+        // Calculate actual loading progress (30% to 99%)
+        const actualProgress = loadedItems > 0 ? (loadedItems / totalItems) * 69 + 30 : 30;
+        
+        // Smooth progress transition
+        this.loadingState.visualProgress = Math.min(99, actualProgress);
+    }
+
+    this.loadingElement.textContent = `Loading... ${Math.round(this.loadingState.visualProgress)}%`;
+
+    // Only continue animation if we're not in fade out
+    if (!this.loadingState.isFadingOut) {
+        requestAnimationFrame(() => this.updateLoadingVisuals());
+    }
+}
+
+			calculateSpherePosition(index) {
+				const radius = Math.pow(Math.random(), 1 / 3) * this.CONFIG.maxRadius;
+				const phi = Math.acos(2 * Math.random() - 1);
+				const theta = 2 * Math.PI * Math.random();
+
+				return new THREE.Vector3(
+					radius * Math.sin(phi) * Math.cos(theta),
+					radius * Math.sin(phi) * Math.sin(theta),
+					radius * Math.cos(phi)
+				);
+			}
+
+			createBillboard(texture, position) {
+				const material = new THREE.SpriteMaterial({
+					map: texture,
+					transparent: true,
+					opacity: 1
+				});
+
+				const billboard = new THREE.Sprite(material);
+				billboard.position.copy(position);
+
+				const imageAspect = texture.image.width / texture.image.height;
+				const distanceScale = 0.3 + (0.7 * (1 - position.length() / this.CONFIG.maxRadius));
+
+				billboard.scale.set(imageAspect * distanceScale, distanceScale, 1);
+
+				this.billboardsContainer.add(billboard);
+				this.billboards.push({
+					sprite: billboard,
+					initialPosition: position.clone(),
+					distanceToCamera: 0
+				});
+			}
+
+			updateLoadingProgress() {
+				this.loadedImages++;
+				const progress = Math.floor((this.loadedImages / this.CONFIG.numberOfPoints) * 100);
+
+				if (this.loadingElement) {
+					this.loadingElement.textContent = `Loading... ${progress}%`;
+					if (this.loadedImages >= this.CONFIG.numberOfPoints) {
+						this.loadingElement.style.display = 'none';
+					}
+				}
+			}
+
+			handleResize() {
+				if (!this.camera || !this.renderer) return;
+
+				const width = window.innerWidth;
+				const height = window.innerHeight;
+
+				this.camera.aspect = width / height;
+				this.camera.updateProjectionMatrix();
+				this.renderer.setSize(width, height);
+			}
+
+			handleWheel(event) {
+				event.preventDefault();
+				const delta = event.deltaY > 0 ? 1 : -1;
+				this.handleZoom(delta);
+			}
+
+			handleZoom(delta) {
+				const newZ = this.camera.position.z + delta * this.CONFIG.zoomSpeed * Math.abs(this.camera.position.z);
+				this.camera.position.z = Math.max(
+					this.CONFIG.cameraMinDistance,
+					Math.min(this.CONFIG.cameraMaxDistance, newZ)
+				);
+			}
+
+			updateBillboardScale(billboard) {
+        const sprite = billboard.sprite;
+        const worldPosition = new THREE.Vector3();
+        sprite.getWorldPosition(worldPosition);
+
+        const distanceToCamera = this.camera.position.distanceTo(worldPosition);
+        billboard.distanceToCamera = distanceToCamera;
+
+        // Normalize distance to a 0-1 range
+        const normalizedDistance = Math.min(
+            distanceToCamera / (this.CONFIG.maxRadius * 2), 
+            1
+        );
+
+        // Calculate scale factor based on selected mode
+        let scaleFactor;
+        switch (this.CONFIG.scaleMode) {
+            case 'exponential':
+                // Exponential scaling (sharper falloff)
+                scaleFactor = 1 - Math.pow(normalizedDistance, this.CONFIG.scaleExponent);
+                break;
+
+            case 'inverse':
+                // Inverse scaling (gradual near camera, sharp falloff at distance)
+                scaleFactor = 1 / (1 + normalizedDistance * 2);
+                break;
+
+            case 'linear':
+            default:
+                // Linear scaling (consistent rate of change)
+                scaleFactor = 1 - normalizedDistance;
+                break;
+        }
+
+        // Calculate final scale
+        const scale = this.CONFIG.minScale +
+            (this.CONFIG.maxScale - this.CONFIG.minScale) * scaleFactor;
+
+        const aspect = sprite.material.map.image.width / sprite.material.map.image.height;
+        sprite.scale.set(aspect * scale, scale, 1);
+    }
+
+			updateRotation(time) {
+				this.billboardsContainer.rotation.y += Math.sin(time * this.CONFIG.rotationSpeed) * this.CONFIG.rotationSpeed;
+				this.billboardsContainer.rotation.x += Math.cos(time * this.CONFIG.rotationSpeed) * this.CONFIG.rotationSpeed;
+				this.billboardsContainer.rotation.z += Math.sin(time * this.CONFIG.rotationSpeed * 0.5) * this.CONFIG.rotationSpeed;
+			}
+
+			updatePositions(time) {
+				this.billboards.forEach(billboard => {
+					const sprite = billboard.sprite;
+					const initialPos = billboard.initialPosition;
+
+					const waveX = Math.sin(time + initialPos.x) * this.CONFIG.waveIntensity;
+					const waveY = Math.cos(time + initialPos.y) * this.CONFIG.waveIntensity;
+					const waveZ = Math.sin(time + initialPos.z) * this.CONFIG.waveIntensity;
+
+					sprite.position.set(
+						initialPos.x + waveX,
+						initialPos.y + waveY,
+						initialPos.z + waveZ
+					);
+
+					this.updateBillboardScale(billboard);
+				});
+			}
+
+			updateStats() {
+				this.frameCount++;
+				const now = performance.now();
+				const delta = now - this.lastTime;
+
+				if (delta >= 1000) {
+					this.fps = Math.round((this.frameCount * 1000) / delta);
+					this.frameCount = 0;
+					this.lastTime = now;
+
+					if (this.statsElement && this.CONFIG.debug) {
+						this.statsElement.textContent =
+							`FPS: ${this.fps}\n` +
+							`Camera Z: ${this.camera.position.z.toFixed(2)}`;
+					}
+
+					// Performance monitoring and adjustment
+					this.fpsHistory.push(this.fps);
+					if (this.fpsHistory.length > 10) this.fpsHistory.shift();
+
+					if (now - this.lastPerformanceCheck > this.performanceCheckInterval) {
+						this.adjustPerformance();
+						this.lastPerformanceCheck = now;
+					}
+				}
+			}
+
+			adjustPerformance() {
+				const avgFPS = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
+
+				if (avgFPS < 30) {
+					this.CONFIG.updateInterval = Math.min(this.CONFIG.updateInterval + 1, 4);
+					this.CONFIG.waveIntensity *= 0.8;
+				} else if (avgFPS > 55 && this.CONFIG.updateInterval > 1) {
+					this.CONFIG.updateInterval = Math.max(this.CONFIG.updateInterval - 1, 1);
+					this.CONFIG.waveIntensity = Math.min(this.CONFIG.waveIntensity * 1.2,
+						this.isLowPerformance() ? 0.05 : 0.1);
+				}
+			}
+
+			animate() {
+				if (!this.isRunning) return;
+				requestAnimationFrame(this.boundAnimate);
+
+				const time = Date.now() * 0.001 * this.CONFIG.waveSpeed;
+
+				// Only update on certain frames based on performance settings
+				if (this.frameCount % this.CONFIG.updateInterval === 0) {
+					this.updateRotation(time);
+					this.updatePositions(time);
+				}
+
+				this.renderer.render(this.scene, this.camera);
+				this.updateStats();
+			}
+
+			// Public methods for external control
+			start() {
+				if (!this.isRunning) {
+					this.isRunning = true;
+					this.lastTime = performance.now();
+					this.animate();
+				}
+			}
+
+			stop() {
+				this.isRunning = false;
+			}
+
+			dispose() {
+				// Clean up resources
+				this.stop();
+
+				// Remove event listeners
+				window.removeEventListener('resize', this.boundHandleResize);
+				this.renderer.domElement.removeEventListener('wheel', this.boundHandleWheel);
+
+				// Dispose of Three.js resources
+				this.billboards.forEach(billboard => {
+					billboard.sprite.material.map.dispose();
+					billboard.sprite.material.dispose();
+				});
+
+				this.renderer.dispose();
+
+				// Remove DOM elements
+				if (this.loadingElement) this.loadingElement.remove();
+				if (this.statsElement) this.statsElement.remove();
+				if (this.renderer.domElement) this.renderer.domElement.remove();
+
+				// Clear arrays and references
+				this.billboards = [];
+				this.fpsHistory = [];
+				this.scene = null;
+				this.camera = null;
+				this.renderer = null;
+
+				// Clear texture cache
+				this.textureCache?.forEach(texture => texture.dispose());
+				this.textureCache?.clear();
+				this.textureCache = null;
+
+			}
+
+			// Configuration methods
+			updateConfig(newConfig) {
+				this.CONFIG = {
+					...this.CONFIG,
+					...newConfig
+				};
+			}
+
+			setDebug(enabled) {
+				this.CONFIG.debug = enabled;
+				if (this.statsElement) {
+					this.statsElement.style.display = enabled ? 'block' : 'none';
+				}
+			}
+		}
+
+
+		// Sample image URLs
+		const imageUrls = [
+			'images/pioneers/1.jpg',
+			'images/pioneers/2.jpg',
+			'images/pioneers/3.jpg',
+			'images/pioneers/4.jpg',
+			'images/pioneers/5.jpg',
+			'images/pioneers/6.jpg',
+			'images/pioneers/7.jpg',
+			'images/pioneers/8.jpg',
+			'images/pioneers/9.jpg',
+			'images/pioneers/10.jpg',
+			'images/pioneers/11.jpg',
+			'images/pioneers/12.jpg'
+		];
+
+		// Custom configuration (optional)
+		const config = {
+			numberOfPoints: window.innerWidth < 768 ? 100 : 250,
+			debug: true,
+			// Add any other config overrides here
+		};
+
+		// Create and initialize the sphere
+		const sphere = new VolumetricSphereBillboards(config);
+
+		// Initialize when DOM is ready
+		document.addEventListener('DOMContentLoaded', async () => {
+			try {
+				await sphere.init('sphere-container', imageUrls);
+			} catch (error) {
+				console.error('Failed to initialize sphere:', error);
+			}
+		});
+
+		// Clean up on page unload
+		window.addEventListener('beforeunload', () => {
+			sphere.dispose();
+		});
+
+
+	</script>
+</body>
+
+</html>

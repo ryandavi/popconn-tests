@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Volumetric Sphere Billboards</title>
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+			background: #000;
+		}
+
+		canvas {
+			display: block;
+		}
+
+		#loading-sphere-images {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			color: white;
+			font-family: Arial, sans-serif;
+			font-size: 24px;
+			text-align: center;
+			background: rgba(0, 0, 0, 0.8);
+			padding: 20px;
+			border-radius: 10px;
+			z-index: 1000;
+		}
+
+		#stats {
+			position: fixed;
+			top: 10px;
+			left: 10px;
+			color: white;
+			font-family: monospace;
+			font-size: 12px;
+			background: rgba(0, 0, 0, 0.5);
+			padding: 5px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="loading-sphere-images">Loading...</div>
+	<div id="stats"></div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+	<script>
+		// Customizable variables
+		const CONFIG = {
+			numberOfPoints: 250,
+			maxRadius: 5,
+			minScale: 0.1,      // Minimum scale for distant sprites
+			maxScale: 1,      // Maximum scale for close sprites
+			rotationSpeed: 0.0055,
+			waveIntensity: 0.1,
+			waveSpeed: 1.0,
+			cameraMinDistance: 3,
+			cameraMaxDistance: 20,
+			zoomSpeed: 0.1,
+			initialDistance: 6,
+			perpsective: 80 // 75
+		};
+
+	// Scaling configuration
+	const SCALE_CONFIG = {
+		minTime: 1, // Minimum time in seconds for scaling animations
+		maxTime: 3, // Maximum time in seconds for scaling animations
+		minHoldTime: 2, // Minimum time in seconds to hold scale at 1
+		maxHoldTime: 4, // Maximum time in seconds to hold scale at 1
+	};
+
+
+		let camera, scene, renderer;
+		let billboards = [];
+		let billboardsContainer;
+		let loadedImages = 0;
+		let isLowPerformance = false;
+		let lastTime = 0;
+		let frameCount = 0;
+		let fps = 0;
+
+		// Detect if running on mobile or slow device
+		function detectPerformance() {
+			isLowPerformance = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+				|| navigator.hardwareConcurrency <= 4;
+
+			if (isLowPerformance) {
+				CONFIG.numberOfPoints = Math.floor(CONFIG.numberOfPoints * 0.6);
+				CONFIG.waveIntensity *= 0.5;
+			}
+		}
+
+		// Sample image URLs
+		const imageUrls = [
+			'images/pioneers/1.jpg',
+			'images/pioneers/2.jpg',
+			'images/pioneers/3.jpg',
+			'images/pioneers/4.jpg',
+			'images/pioneers/5.jpg',
+			'images/pioneers/6.jpg',
+			'images/pioneers/7.jpg',
+			'images/pioneers/8.jpg',
+			'images/pioneers/9.jpg',
+			'images/pioneers/10.jpg',
+			'images/pioneers/11.jpg',
+			'images/pioneers/12.jpg'
+		];
+
+
+		document.addEventListener('DOMContentLoaded', () => {
+			detectPerformance();
+			init();
+			animate();
+		});
+
+		function updateLoadingProgress() {
+
+			const totalImages = CONFIG.numberOfPoints; // Total distinct images to be loaded
+			const progress = Math.floor((loadedImages / totalImages) * 100); // Adjust percentage calculation
+			document.getElementById('loading-sphere-images').innerHTML = `Loading... ${progress}%`;
+			if (loadedImages >= totalImages) {
+				document.getElementById('loading-sphere-images').style.display = 'none';
+			}
+		}
+
+		function init() {
+			scene = new THREE.Scene();
+
+			camera = new THREE.PerspectiveCamera(CONFIG.perspective, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.z = CONFIG.initialDistance;
+
+			renderer = new THREE.WebGLRenderer({ antialias: !isLowPerformance });
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setPixelRatio(isLowPerformance ? 1 : window.devicePixelRatio);
+			document.body.appendChild(renderer.domElement);
+
+			billboardsContainer = new THREE.Object3D();
+			scene.add(billboardsContainer);
+
+			const textureLoader = new THREE.TextureLoader();
+			textureLoader.crossOrigin = 'anonymous';
+
+			// Create object pool for billboards
+			const geometry = new THREE.BufferGeometry();
+			const positions = new Float32Array(CONFIG.numberOfPoints * 3);
+			const scales = new Float32Array(CONFIG.numberOfPoints);
+
+			function random(min, max) {
+				return Math.random() * (max - min) + min;
+			}
+
+			for (let i = 0; i < CONFIG.numberOfPoints; i++) {
+				const radius = Math.pow(Math.random(), 1 / 3) * CONFIG.maxRadius;
+				const phi = Math.acos(2 * Math.random() - 1);
+				const theta = 2 * Math.PI * Math.random();
+
+				const x = radius * Math.sin(phi) * Math.cos(theta);
+				const y = radius * Math.sin(phi) * Math.sin(theta);
+				const z = radius * Math.cos(phi);
+
+				textureLoader.load(
+					imageUrls[i % imageUrls.length],
+					(function (index, pos) {
+						return function (texture) {
+							const material = new THREE.SpriteMaterial({
+								map: texture,
+								transparent: true,
+								opacity: 1
+							});
+
+							const billboard = new THREE.Sprite(material);
+							billboard.position.set(pos.x, pos.y, pos.z);
+
+							const imageAspect = texture.image.width / texture.image.height;
+							const distanceScale = 0.3 + (0.7 * (1 - radius/CONFIG.maxRadius)); // Smaller towards the edges
+
+							billboard.scale.set(imageAspect * distanceScale, distanceScale, 1);
+
+
+
+
+							billboardsContainer.add(billboard);
+							billboards.push({
+								sprite: billboard,
+								initialPosition: new THREE.Vector3(pos.x, pos.y, pos.z),
+								distanceToCamera: 0
+							});
+
+							loadedImages++;
+							updateLoadingProgress();
+						};
+					})(i, { x, y, z }),
+					undefined,
+					function (error) {
+						console.error('Error loading texture:', error);
+						loadedImages++;
+						updateLoadingProgress();
+					}
+				);
+			}
+
+			renderer.domElement.addEventListener('wheel', onMouseWheel, { passive: false });
+			window.addEventListener('resize', onWindowResize, false);
+
+			const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+			scene.add(ambientLight);
+		}
+
+
+		
+		function onMouseWheel(event) {
+			event.preventDefault();
+			const delta = event.deltaY > 0 ? 1 : -1;
+			camera.position.z += delta * CONFIG.zoomSpeed * Math.abs(camera.position.z);
+			camera.position.z = Math.max(CONFIG.cameraMinDistance,
+				Math.min(CONFIG.cameraMaxDistance, camera.position.z));
+
+			// billboards.forEach(updateBillboardScale);
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		function updateFPS() {
+			frameCount++;
+			const now = performance.now();
+			const delta = now - lastTime;
+
+			if (delta >= 1000) {
+				fps = Math.round((frameCount * 1000) / delta);
+				frameCount = 0;
+				lastTime = now;
+				document.getElementById('stats').innerHTML = `FPS: ${fps}`;
+				document.getElementById('stats').innerHTML += `<br>Camera Z: ${camera.position.z.toFixed(2)}`;
+			}
+		}
+
+
+
+		function updateBillboardScale(billboard) {
+			const sprite = billboard.sprite;
+
+			// Calculate the world position of the sprite
+			const worldPosition = new THREE.Vector3();
+			sprite.getWorldPosition(worldPosition);
+
+			// Calculate the distance to the camera
+			const distanceToCamera = camera.position.distanceTo(worldPosition);
+			billboard.distanceToCamera = distanceToCamera;
+
+			// Scale calculation based on distance
+			const scale = CONFIG.minScale + (CONFIG.maxScale - CONFIG.minScale) * (1 - Math.min(distanceToCamera / (CONFIG.maxRadius * 2), 1));
+
+			// Adjust scale with aspect ratio
+			const aspect = sprite.material.map.image.width / sprite.material.map.image.height;
+			sprite.scale.set(aspect * scale, scale, 1);
+		}
+
+		function animate() {
+			requestAnimationFrame(animate);
+
+			const time = Date.now() * 0.001 * CONFIG.waveSpeed;
+
+			// billboardsContainer.rotation.y += CONFIG.rotationSpeed;
+
+			// billboardsContainer.rotation.x += CONFIG.rotationSpeed;
+
+			// billboardsContainer.rotation.z += CONFIG.rotationSpeed;
+
+			billboardsContainer.rotation.y += Math.sin(time * CONFIG.rotationSpeed) * CONFIG.rotationSpeed;
+			billboardsContainer.rotation.x += Math.cos(time * CONFIG.rotationSpeed) * CONFIG.rotationSpeed;
+			billboardsContainer.rotation.z += Math.sin(time * CONFIG.rotationSpeed * 0.5) * CONFIG.rotationSpeed;
+
+
+
+			// Only update positions if frame rate is good or every other frame if low
+			if (!isLowPerformance || frameCount % 2 === 0) {
+				billboards.forEach(billboard => {
+					const sprite = billboard.sprite;
+					const initialPos = billboard.initialPosition;
+
+					const waveX = Math.sin(time + initialPos.x) * CONFIG.waveIntensity;
+					const waveY = Math.cos(time + initialPos.y) * CONFIG.waveIntensity;
+					const waveZ = Math.sin(time + initialPos.z) * CONFIG.waveIntensity;
+
+					sprite.position.x = initialPos.x + waveX;
+					sprite.position.y = initialPos.y + waveY;
+					sprite.position.z = initialPos.z + waveZ;
+
+					updateBillboardScale(billboard);
+				});
+			}
+
+			renderer.render(scene, camera);
+			updateFPS();
+		}
+	</script>
+</body>
+
+</html>

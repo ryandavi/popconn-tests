@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Volumetric Sphere Billboards</title>
+	<style>
+		/* Base styles */
+		body {
+			margin: 0;
+			overflow: hidden;
+			background: #000;
+		}
+
+		canvas {
+			display: block;
+			width: 100vw;
+			height: 100vh;
+			touch-action: none;
+			/* Prevents default touch behaviors */
+		}
+	</style>
+</head>
+
+<body>
+	<div id="loadingElement">Loading...</div>
+	<div id="sphere-container"></div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+	<script>
+		class ParticleSystem {
+			constructor(scene, camera, imageUrls) {
+				this.CONFIG = {
+					MAX_PARTICLES: 800,         // Many more particles for background flow
+					PARTICLE_SIZE: 4.0,         // Base size for main images
+					START_DISTANCE: 100,        // Further start distance for better depth
+					MIN_LIFE_SPEED: 0.05,       // Slower life speed for smoother flow
+					MAX_LIFE_SPEED: 0.15,
+					SPAWN_RATE: 4.0,           // Much higher spawn rate
+					MIN_SCALE: 0.05,           // Much smaller minimum scale for background particles
+					MAX_SCALE: 5.0,            // Larger maximum scale for focal points
+					FLOW_SPEED: 0.2,           // New: controls overall flow speed
+					FLOW_CHANGE_SPEED: 0.001,  // New: how fast the flow direction changes
+					CENTER_BIAS: 0.7,          // New: tendency to move toward center
+					BACKGROUND_RATIO: 0.8      // New: ratio of particles that should be small background particles
+				};
+
+				this.scene = scene;
+				this.camera = camera;
+				this.imageUrls = imageUrls;
+				this.particles = [];
+				this.materials = [];
+				this.waveOffset = 0;
+				this.ready = false;
+				this.sphereRadius = this.CONFIG.START_DISTANCE;
+
+				this.loadTextures();
+			}
+			loadTextures() {
+				const textureLoader = new THREE.TextureLoader();
+				let loadedCount = 0;
+
+				this.imageUrls.forEach(url => {
+					textureLoader.load(
+						url,
+						(texture) => {
+							const material = new THREE.SpriteMaterial({
+								map: texture,
+								transparent: true,
+								opacity: 0.9
+							});
+							this.materials.push(material);
+
+							loadedCount++;
+							if (loadedCount === this.imageUrls.length) {
+								this.ready = true;
+								loadingElement.style.display = 'none';
+								for (let i = 0; i < this.CONFIG.MAX_PARTICLES / 2; i++) {
+									this.createParticle();
+								}
+							}
+						},
+						undefined,
+						(error) => console.error('Error loading texture:', error)
+					);
+				});
+			}
+
+
+
+		// Update the createParticle method:
+		createParticle() {
+			if (this.particles.length >= this.CONFIG.MAX_PARTICLES) return;
+
+			const isBackgroundParticle = Math.random() < this.CONFIG.BACKGROUND_RATIO;
+
+			// Start particles in a sphere
+			const phi = Math.random() * Math.PI * 2;
+			const theta = Math.random() * Math.PI;
+			const radius = this.CONFIG.START_DISTANCE * (isBackgroundParticle ? 1 : 0.5);
+
+			const x = radius * Math.sin(theta) * Math.cos(phi);
+			const y = radius * Math.sin(theta) * Math.sin(phi);
+			const z = radius * Math.cos(theta);
+
+			const materialIndex = Math.floor(Math.random() * this.materials.length);
+			const sprite = new THREE.Sprite(this.materials[materialIndex].clone());
+
+			// Set initial scale based on particle type
+			const initialScale = isBackgroundParticle ?
+				this.CONFIG.PARTICLE_SIZE * 0.1 :
+				this.CONFIG.PARTICLE_SIZE * (0.8 + Math.random() * 0.4);
+
+			sprite.scale.set(initialScale, initialScale, 1);
+			sprite.position.set(x, y, z);
+
+			// Store particle properties
+			sprite.userData = {
+				isBackground: isBackgroundParticle,
+				life: 0,
+				lifeSpeed: this.CONFIG.MIN_LIFE_SPEED +
+					Math.random() * (this.CONFIG.MAX_LIFE_SPEED - this.CONFIG.MIN_LIFE_SPEED),
+				flowOffset: Math.random() * Math.PI * 2,
+				initialRadius: radius,
+				phi: phi,
+				theta: theta
+			};
+
+			this.particles.push(sprite);
+			this.scene.add(sprite);
+		}
+
+		// Update the updateParticle method:
+		updateParticle(particle, deltaTime) {
+			particle.userData.life += particle.userData.lifeSpeed * deltaTime;
+
+			if (particle.userData.life > 1) {
+				this.scene.remove(particle);
+				return false;
+			}
+
+			// Calculate flow movement
+			const time = Date.now() * 0.001;
+			const flowAngleX = Math.sin(time * this.CONFIG.FLOW_CHANGE_SPEED + particle.userData.flowOffset);
+			const flowAngleY = Math.cos(time * this.CONFIG.FLOW_CHANGE_SPEED * 1.1 + particle.userData.flowOffset);
+			const flowAngleZ = Math.sin(time * this.CONFIG.FLOW_CHANGE_SPEED * 0.9 + particle.userData.flowOffset);
+
+			// Different behavior for background vs foreground particles
+			if (particle.userData.isBackground) {
+				// Background particles flow more freely
+				particle.position.x += flowAngleX * this.CONFIG.FLOW_SPEED * deltaTime;
+				particle.position.y += flowAngleY * this.CONFIG.FLOW_SPEED * deltaTime;
+				particle.position.z += flowAngleZ * this.CONFIG.FLOW_SPEED * deltaTime;
+
+				// Pull slightly toward center
+				particle.position.multiplyScalar(0.99);
+			} else {
+				// Foreground particles move more deliberately
+				const life = particle.userData.life;
+				let targetRadius;
+
+				if (life < 0.3) {
+					// Coming in
+					targetRadius = particle.userData.initialRadius * (1 - life / 0.3);
+				} else if (life > 0.7) {
+					// Going out
+					targetRadius = particle.userData.initialRadius * ((life - 0.7) / 0.3);
+				} else {
+					// Stable in viewing area
+					targetRadius = particle.userData.initialRadius * 0.2;
+					// Add gentle flow movement
+					particle.position.x += flowAngleX * this.CONFIG.FLOW_SPEED * 0.2 * deltaTime;
+					particle.position.y += flowAngleY * this.CONFIG.FLOW_SPEED * 0.2 * deltaTime;
+				}
+
+				// Move toward target radius
+				const currentRadius = particle.position.length();
+				if (currentRadius > 0) {
+					particle.position.multiplyScalar(targetRadius / currentRadius);
+				}
+			}
+
+			// Scale and opacity based on distance
+			const distanceFromCamera = particle.position.length();
+			const maxDistance = this.CONFIG.START_DISTANCE;
+
+			let scale;
+			if (particle.userData.isBackground) {
+				scale = THREE.MathUtils.lerp(
+					this.CONFIG.MIN_SCALE,
+					this.CONFIG.MIN_SCALE * 2,
+					1 - distanceFromCamera / maxDistance
+				);
+			} else {
+				scale = THREE.MathUtils.lerp(
+					this.CONFIG.MAX_SCALE,
+					this.CONFIG.MIN_SCALE,
+					distanceFromCamera / maxDistance
+				);
+			}
+
+			particle.scale.set(scale, scale, 1);
+
+			// Fade based on life and distance
+			let opacity = 1;
+			if (particle.userData.life < 0.2) opacity = particle.userData.life / 0.2;
+			else if (particle.userData.life > 0.8) opacity = (1 - particle.userData.life) / 0.2;
+
+			particle.material.opacity = opacity * (1 - distanceFromCamera / maxDistance);
+
+			return true;
+		}
+
+		update(deltaTime) {
+			if (!this.ready) return;
+
+			// Spawn new particles gradually
+			if (this.particles.length < this.CONFIG.MAX_PARTICLES && Math.random() < this.CONFIG.SPAWN_RATE * deltaTime) {
+				this.createParticle();
+			}
+
+			this.particles.forEach(particle => this.updateParticle(particle, deltaTime));
+		}
+
+		dispose() {
+			this.particles.forEach(particle => {
+				particle.material.dispose();
+				this.scene.remove(particle);
+			});
+			this.materials.forEach(material => {
+				material.map.dispose();
+				material.dispose();
+			});
+			this.particles = [];
+			this.materials = [];
+		}
+		}
+
+
+
+
+
+
+		// Scene setup
+		const scene = new THREE.Scene();
+		scene.background = new THREE.Color(0xffffff); // White background
+
+		const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+
+		const renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		document.body.appendChild(renderer.domElement);
+
+		// Smooth camera movement
+		const cameraTarget = new THREE.Vector3();
+		let mouseX = 0, mouseY = 0;
+
+		document.addEventListener('mousemove', (event) => {
+			mouseX = (event.clientX - window.innerWidth / 2) / window.innerWidth;
+			mouseY = (event.clientY - window.innerHeight / 2) / window.innerHeight;
+		});
+
+		// Handle window resize
+		window.addEventListener('resize', () => {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		});
+
+
+		// Sample image URLs
+		const imageUrls = [
+			'images/pioneers/1.jpg',
+			'images/pioneers/2.jpg',
+			'images/pioneers/3.jpg',
+			'images/pioneers/4.jpg',
+			'images/pioneers/5.jpg',
+			'images/pioneers/6.jpg',
+			'images/pioneers/7.jpg',
+			'images/pioneers/8.jpg',
+			'images/pioneers/9.jpg',
+			'images/pioneers/10.jpg',
+			'images/pioneers/11.jpg',
+			'images/pioneers/12.jpg'
+		];
+
+		const particleSystem = new ParticleSystem(scene, camera, imageUrls);
+
+		const clock = new THREE.Clock();
+
+		// Update camera position:
+		camera.position.z = 30;  // Move camera closer
+		camera.position.y = Math.sin(clock.getElapsedTime() * 0.2) * 2;
+
+		function animate() {
+			requestAnimationFrame(animate);
+
+			const deltaTime = clock.getDelta();
+
+			// Smooth camera movement
+			camera.position.x += (mouseX * 20 - camera.position.x) * 0.05;
+			camera.position.y += (-mouseY * 20 - camera.position.y) * 0.05;
+			camera.lookAt(cameraTarget);
+
+			particleSystem.update(deltaTime);
+			renderer.render(scene, camera);
+		}
+
+		animate();
+
+
+	</script>
+</body>
+
+</html>
