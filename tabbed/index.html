@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Cards</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f0f0f0;
+            font-family: system-ui, sans-serif;
+        }
+
+        .cards-container {
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            padding: 1rem;
+			perspective: 1000px;
+        }
+
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+			margin-bottom: -38%;
+			min-height: 300px;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+			transform: rotateX(-20deg);
+		}
+
+        .card:focus-visible {
+            outline: 3px solid #007bff;
+            outline-offset: 2px;
+        }
+
+        .card:hover:not(.expanded) {
+            transform: translateY(-30px);
+        }
+
+        .card.expanding {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            z-index: 1000;
+            border-radius: 0;
+            overflow-y: auto;
+            cursor: default;
+            animation: expand 0.3s ease forwards;
+        }
+
+        .card.expanded {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            z-index: 1000;
+            border-radius: 0;
+            overflow-y: auto;
+            cursor: default;
+        }
+
+        @keyframes expand {
+            from {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .card.shrinking {
+            animation: shrink 0.3s ease forwards;
+        }
+
+        @keyframes shrink {
+            from {
+                transform: scale(1);
+                opacity: 1;
+            }
+            to {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+        }
+
+        .close-btn {
+            display: none;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            color: #333;
+            transition: color 0.3s ease;
+        }
+
+        .close-btn:hover {
+            color: #000;
+        }
+
+        .close-btn:focus-visible {
+            outline: 2px solid #007bff;
+            border-radius: 4px;
+        }
+
+        .card.expanded .close-btn {
+            display: block;
+        }
+
+        .card-content {
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover .card-content,
+        .card.expanded .card-content {
+            opacity: 1;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+            .cards-container {
+                width: 100%;
+                padding: 0.5rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+                margin-bottom: -40px;
+            }
+
+            .close-btn {
+                top: 10px;
+                right: 10px;
+            }
+        }
+
+        /* Reduce motion preferences */
+        @media (prefers-reduced-motion: reduce) {
+            .card {
+                transition: none;
+            }
+            
+            .card.expanding,
+            .card.shrinking {
+                animation: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cards-container">
+        <div class="card" tabindex="0" role="button" aria-expanded="false" style="background: #e8f4f8">
+            <button class="close-btn" aria-label="Close card">×</button>
+            <div class="card-content">
+                <h2>Card One</h2>
+                <p>Content for card one goes here...</p>
+            </div>
+        </div>
+        <div class="card" tabindex="0" role="button" aria-expanded="false" style="background: #f8e8e8">
+            <button class="close-btn" aria-label="Close card">×</button>
+            <div class="card-content">
+                <h2>Card Two</h2>
+                <p>Content for card two goes here...</p>
+            </div>
+        </div>
+        <div class="card" tabindex="0" role="button" aria-expanded="false" style="background: #e8f8e8">
+            <button class="close-btn" aria-label="Close card">×</button>
+            <div class="card-content">
+                <h2>Card Three</h2>
+                <p>Content for card three goes here...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const cards = document.querySelectorAll('.card');
+        let expandedCard = null;
+
+        function closeCard(card) {
+            if (!card) return;
+            
+            card.classList.add('shrinking');
+            card.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = 'auto';
+            
+            // Wait for animation to complete before removing all classes
+            setTimeout(() => {
+                card.classList.remove('expanded', 'shrinking');
+            }, 300);
+        }
+
+        function expandCard(card) {
+            // First add the expanding class for the animation
+            card.classList.add('expanding');
+            card.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+            expandedCard = card;
+            
+            // After animation completes, switch to expanded class
+            setTimeout(() => {
+                card.classList.remove('expanding');
+                card.classList.add('expanded');
+            }, 300);
+            
+            // Focus the close button for keyboard users
+            const closeBtn = card.querySelector('.close-btn');
+            closeBtn.focus();
+        }
+
+        cards.forEach(card => {
+            // Click handler
+            card.addEventListener('click', (e) => {
+                if (!card.classList.contains('expanded') && 
+                    !card.classList.contains('expanding') && 
+                    !e.target.classList.contains('close-btn')) {
+                    expandCard(card);
+                }
+            });
+
+            // Keyboard handler for Enter key
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !card.classList.contains('expanded')) {
+                    expandCard(card);
+                }
+            });
+
+            const closeBtn = card.querySelector('.close-btn');
+            
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeCard(card);
+            });
+
+            // Keyboard handler for close button
+            closeBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    closeCard(card);
+                }
+            });
+        });
+
+        // Global escape key handler
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && expandedCard) {
+                closeCard(expandedCard);
+            }
+        });
+
+
+    </script>
+</body>
+</html>
