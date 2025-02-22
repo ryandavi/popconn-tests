@@ -444,20 +444,11 @@ class AlienTerminal {
 
 		this.elements.input.addEventListener("input", (event) => {
 			if (event.target.tagName === "INPUT") {
-				const input = event.target;
-				const tempSpan = document.createElement("span");
-				
-				tempSpan.style.visibility = "hidden";
-				tempSpan.style.position = "absolute";
-				tempSpan.style.whiteSpace = "pre";
-				tempSpan.style.font = getComputedStyle(input).font;
-				tempSpan.textContent = input.value || input.placeholder || " ";
-				
-				document.body.appendChild(tempSpan);
-				input.style.width = tempSpan.offsetWidth + "px";
-				document.body.removeChild(tempSpan);
+				this.updateInputWidth(event.target);
 			}
 		});
+
+		this.elements.input.querySelectorAll("input").forEach(this.updateInputWidth);
 
 
 
@@ -495,11 +486,25 @@ class AlienTerminal {
 
 			if (userInput) {
 				this.elements.input.value = '';
+
 				this.elements.terminalInput.classList.remove('visible');
 				await this.typeText(userInput, this.USER_NAME, true);
 				await this.processInput(userInput);
 			}
 		}
+	}
+
+	updateInputWidth(input) {
+		const tempSpan = document.createElement("span");
+		tempSpan.style.visibility = "hidden";
+		tempSpan.style.position = "absolute";
+		tempSpan.style.whiteSpace = "pre";
+		tempSpan.style.font = getComputedStyle(input).font;
+		tempSpan.textContent = input.value || ""; // No placeholder fallback, allows 0 width
+	
+		document.body.appendChild(tempSpan);
+		input.style.width = tempSpan.offsetWidth + "px";
+		document.body.removeChild(tempSpan);
 	}
 
 	setupUsername() {
@@ -642,6 +647,8 @@ class AlienTerminal {
 			this.elements.input.disabled = false;
 
 			await new Promise(resolve => setTimeout(resolve, this.INPUT_DELAY));
+
+			this.updateInputWidth(this.elements.input);
 
 			this.elements.terminalInput.classList.add('visible');
 			setTimeout(() => {

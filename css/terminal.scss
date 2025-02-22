@@ -6,7 +6,8 @@ body#console {
 	--border-radius: 4px;
 	--user-color: var(--accent-color);
 	--border-width: 2px;
-	--line-height: 1.2; // line height has to be over 1
+	--line-height: 1.5; // line height has to be over 1
+	--ascii-line-height: 1.2;
 
 	--hover-color: var(--accent-color);
 	--hover-background-color: rgba(255, 255, 255, 0.025); // #050505;
@@ -294,6 +295,7 @@ body#console {
 				// font-family: monospace;
 				white-space: pre;
 				// line-height: 1;
+				line-height:var(--ascii-line-height);
 				color: var(--accent-color);
 
 				>.new-cursor {

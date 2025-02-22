@@ -5,7 +5,8 @@ body#console {
   --border-radius: 4px;
   --user-color: var(--accent-color);
   --border-width: 2px;
-  --line-height: 1.2;
+  --line-height: 1.5;
+  --ascii-line-height: 1.2;
   --hover-color: var(--accent-color);
   --hover-background-color: rgba(255, 255, 255, 0.025);
   --nav-height: 35px;
@@ -203,6 +204,7 @@ body#console > .terminal .console-message.system {
 body#console > .terminal .console-message.ascii {
   padding: 0 3px;
   white-space: pre;
+  line-height: var(--ascii-line-height);
   color: var(--accent-color);
 }
 body#console > .terminal .console-message.ascii > .new-cursor {
