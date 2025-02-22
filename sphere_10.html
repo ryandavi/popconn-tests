@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Segmented Sphere Image Viewer</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+			background: #000;
+			touch-action: none;
+		}
+
+		canvas {
+			display: block;
+		}
+
+		#info {
+			position: fixed;
+			top: 10px;
+			left: 10px;
+			color: white;
+			font-family: Arial, sans-serif;
+			background: rgba(0, 0, 0, 0.7);
+			padding: 10px;
+			border-radius: 5px;
+			display: none;
+			z-index: 1000;
+		}
+
+		#controls {
+			position: fixed;
+			top: 10px;
+			right: 10px;
+			color: white;
+			font-family: Arial, sans-serif;
+			background: rgba(0, 0, 0, 0.7);
+			padding: 10px;
+			border-radius: 5px;
+			z-index: 1000;
+		}
+
+		.control-group {
+			margin-bottom: 10px;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 5px;
+		}
+
+		input[type="range"] {
+			width: 150px;
+		}
+
+		@media (max-width: 768px) {
+			#controls {
+				font-size: 14px;
+			}
+
+			input[type="range"] {
+				width: 100px;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div id="info"></div>
+	<div id="controls">
+		<div class="control-group">
+			<label for="segments">Segments: <span id="segments-value">8</span></label>
+			<input type="range" id="segments" min="4" max="16" value="8">
+		</div>
+		<div class="control-group">
+			<label for="rings">Rings: <span id="rings-value">5</span></label>
+			<input type="range" id="rings" min="3" max="12" value="6">
+		</div>
+		<div class="control-group">
+			<label for="skipRings">Skip Rings: <span id="skipRings-value">1</span></label>
+			<input type="range" id="skipRings" min="0" max="3" value="0">
+		</div>
+		<div class="control-group">
+			<label for="imageScale">Image Scale: <span id="imageScale-value">80%</span></label>
+			<input type="range" id="imageScale" min="0" max="150" value="80">
+		</div>
+		<div class="control-group">
+			<label for="rotationSpeed">Rotation Speed: <span id="rotationSpeed-value">30%</span></label>
+			<input type="range" id="rotationSpeed" min="0" max="100" value="30">
+		</div>
+	</div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+	<script>
+		// Configuration object for sphere parameters
+		let config = {
+			segments: 9,
+			rings: 6,
+			skipRings: 2,
+			imageScale: 0.8,
+			rotationSpeed: 0.3,
+			radius: 2,
+			activeImageDistance: .2,
+			activeImageTweenDuration: 1000,
+			rotationPauseDuration: 3000
+		};
+
+		let activeTweens = {
+			autoRotation: null,
+			verticalRotation: null
+		};
+
+		let currentRotationSpeed = config.rotationSpeed; // Actual current speed
+
+		// Image URLs array
+		const imageUrls = [
+			{
+				image: 'images/pioneers/1.jpg',
+				url: 'https://example.com/pioneer1',
+				title: 'Pioneer One',
+				description: 'A visionary who laid the foundation for modern computing.'
+			},
+			{
+				image: 'images/pioneers/2.jpg',
+				url: 'https://example.com/pioneer2',
+				title: 'Pioneer Two',
+				description: 'An innovator known for their contributions to AI and machine learning.'
+			},
+			{
+				image: 'images/pioneers/3.jpg',
+				url: 'https://example.com/pioneer3',
+				title: 'Pioneer Three',
+				description: 'Revolutionized data structures and algorithms, shaping software engineering.'
+			},
+			{
+				image: 'images/pioneers/4.jpg',
+				url: 'https://example.com/pioneer4',
+				title: 'Pioneer Four',
+				description: 'A key figure in the development of early programming languages.'
+			},
+			{
+				image: 'images/pioneers/5.jpg',
+				url: 'https://example.com/pioneer5',
+				title: 'Pioneer Five',
+				description: 'A cyber-security expert who made breakthroughs in encryption.'
+			},
+			{
+				image: 'images/pioneers/6.jpg',
+				url: 'https://example.com/pioneer6',
+				title: 'Pioneer Six',
+				description: 'Developed one of the first personal computers, making computing accessible to all.'
+			},
+			{
+				image: 'images/pioneers/7.jpg',
+				url: 'https://example.com/pioneer7',
+				title: 'Pioneer Seven',
+				description: 'Led advancements in computer networking and the foundation of the internet.'
+			},
+			{
+				image: 'images/pioneers/8.jpg',
+				url: 'https://example.com/pioneer8',
+				title: 'Pioneer Eight',
+				description: 'A pioneer in robotics, paving the way for automation and AI-driven machines.'
+			},
+			{
+				image: 'images/pioneers/9.jpg',
+				url: 'https://example.com/pioneer9',
+				title: 'Pioneer Nine',
+				description: 'Invented groundbreaking hardware that changed modern computing.'
+			},
+			{
+				image: 'images/pioneers/10.jpg',
+				url: 'https://example.com/pioneer10',
+				title: 'Pioneer Ten',
+				description: 'Contributed to early operating systems and graphical user interfaces.'
+			},
+			{
+				image: 'images/pioneers/11.jpg',
+				url: 'https://example.com/pioneer11',
+				title: 'Pioneer Eleven',
+				description: 'A software engineer who introduced key innovations in software development.'
+			},
+			{
+				image: 'images/pioneers/12.jpg',
+				url: 'https://example.com/pioneer12',
+				title: 'Pioneer Twelve',
+				description: 'A leader in artificial intelligence, shaping the future of smart technology.'
+			}
+		];
+
+		// Add these variables near the top with other globals
+		let autoRotationTimeout = null;
+		let originalRotationY = 0;
+
+		// Three.js setup
+		const scene = new THREE.Scene();
+		const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+		const renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		document.body.appendChild(renderer.domElement);
+
+		camera.position.z = 4;
+
+		// Lighting setup
+		const light = new THREE.DirectionalLight(0xffffff, 1);
+		light.position.set(1, 1, 1);
+		scene.add(light);
+		scene.add(new THREE.AmbientLight(0x404040));
+
+		// Global variables
+		let sphere;
+		let imageMeshes = []; // Store only image meshes
+		const textureLoader = new THREE.TextureLoader();
+		const loadedTextures = new Map();
+		let isRotating = false;
+
+		// Load all textures and store their aspect ratios
+		function loadTextures() {
+			return Promise.all(imageUrls.map((item, index) => {
+				return new Promise((resolve, reject) => {
+					textureLoader.load(
+						item.image,  // Changed from url to item.image
+						(texture) => {
+							const aspectRatio = texture.image.width / texture.image.height;
+							loadedTextures.set(item.image, {  // Changed key to item.image
+								texture: texture,
+								aspectRatio: aspectRatio
+							});
+							resolve();
+						},
+						undefined,
+						(error) => {
+							console.error(`Error loading texture ${item.image}:`, error);
+							const canvas = document.createElement('canvas');
+							canvas.width = 400;
+							canvas.height = 300;
+							const ctx = canvas.getContext('2d');
+							ctx.fillStyle = `hsl(${(index / imageUrls.length) * 360}, 70%, 50%)`;
+							ctx.fillRect(0, 0, 400, 300);
+							const texture = new THREE.CanvasTexture(canvas);
+							loadedTextures.set(item.image, {  // Changed key to item.image
+								texture: texture,
+								aspectRatio: 4 / 3
+							});
+							resolve();
+						}
+					);
+				});
+			}));
+		}
+
+		// Create or recreate the sphere with current configuration
+		// Update the createSphere function
+		function createSphere() {
+			if (sphere) {
+				scene.remove(sphere);
+				imageMeshes = [];
+			}
+
+			sphere = new THREE.Group();
+
+			const phiStep = Math.PI / config.rings;
+			const thetaStep = (2 * Math.PI) / config.segments;
+
+			const skipTop = config.skipRings;
+			const skipBottom = config.skipRings;
+
+			// Calculate total needed positions
+			const visibleRings = config.rings - skipTop - skipBottom;
+			const totalPositions = (config.rings - skipBottom - skipTop + 1) * config.segments;
+
+			// Create extended image data array by duplicating as needed
+			const extendedImageData = [];
+			while (extendedImageData.length <= totalPositions) {
+				const nextBatch = imageUrls.map(imageData => ({
+					...imageData,
+					uniqueId: `${imageData.image}_${extendedImageData.length}` // Add unique identifier
+				}));
+				extendedImageData.push(...nextBatch);
+			}
+
+			// Shuffle the final array one more time to ensure truly random distribution
+			const shuffledImageData = extendedImageData
+				.slice(0, totalPositions)
+				.sort(() => Math.random() - 0.5);
+
+			let meshIndex = 0;
+
+			for (let ring = skipTop; ring <= config.rings - skipBottom; ring++) {
+				const phi = (ring * phiStep);
+
+				for (let segment = 0; segment < config.segments; segment++) {
+					const theta = segment * thetaStep;
+
+					const x = config.radius * Math.sin(phi) * Math.cos(theta);
+					const y = config.radius * Math.cos(phi);
+					const z = config.radius * Math.sin(phi) * Math.sin(theta);
+					const ringIndex = ring - skipTop;
+					const segmentIndex = segment;
+
+					const imageData = extendedImageData[meshIndex];
+
+					const textureData = loadedTextures.get(imageData.image);
+
+					if (textureData) {
+						const aspectRatio = textureData.aspectRatio;
+						const width = aspectRatio >= 1 ? 1 : aspectRatio;
+						const height = aspectRatio >= 1 ? 1 / aspectRatio : 1;
+						const geometry = new THREE.PlaneGeometry(width, height);
+
+						const material = new THREE.MeshPhongMaterial({
+							map: textureData.texture,
+							side: THREE.DoubleSide
+						});
+
+						const mesh = new THREE.Mesh(geometry, material);
+						mesh.position.set(x, y, z);
+						mesh.lookAt(0, 0, 0);
+						mesh.scale.multiplyScalar(config.imageScale);
+
+						// Store mesh data with unique identifier
+						mesh.userData = {
+							imageIndex: meshIndex,
+							ringIndex: ringIndex,
+							segmentIndex: segmentIndex,
+							initialPosition: new THREE.Vector3(x, y, z),
+							imageData: imageData,
+							uniqueId: imageData.uniqueId, // Store unique identifier
+							meshIndex: imageMeshes.length
+						};
+
+						imageMeshes.push(mesh);
+						sphere.add(mesh);
+						meshIndex++;
+					}
+				}
+			}
+
+			scene.add(sphere);
+
+			console.log('Sphere created with:', {
+				totalPositions,
+				availableImages: imageUrls.length,
+				extendedImages: extendedImageData.length,
+				createdMeshes: imageMeshes.length,
+				visibleRings,
+				segments: config.segments
+			});
+		}
+
+
+		// Interaction handling
+		const raycaster = new THREE.Raycaster();
+		raycaster.params.Mesh.threshold = 0.1;
+		const mouse = new THREE.Vector2();
+
+		function handlePointerEvent(event) {
+			event.preventDefault();
+
+			// Get pointer position
+			const x = event.clientX || (event.touches ? event.touches[0].clientX : 0);
+			const y = event.clientY || (event.touches ? event.touches[0].clientY : 0);
+
+			mouse.x = (x / window.innerWidth) * 2 - 1;
+			mouse.y = -(y / window.innerHeight) * 2 + 1;
+
+			// Only check intersections with image meshes
+			raycaster.setFromCamera(mouse, camera);
+			const intersects = raycaster.intersectObjects(imageMeshes, false);
+
+			if (intersects.length > 0 && !isRotating) {
+				const clickedMesh = intersects[0].object;
+				if (currentImageIndex == clickedMesh.userData.imageIndex) {
+					// clear it if you click the same one again
+					clearImageInfo();
+					if (autoRotationTimeout) {
+						clearTimeout(autoRotationTimeout);
+					}
+					returnToAutoRotation();
+				} else {
+					rotateToImage(clickedMesh);
+					showImageInfo(clickedMesh.userData.imageIndex);
+				}
+
+			}
+		}
+
+		function rotateToImage(imageMesh) {
+			if (isRotating) return;
+			isRotating = true;
+
+			// Stop any active tweens
+			if (activeTweens.autoRotation) {
+				activeTweens.autoRotation.stop();
+				activeTweens.autoRotation = null;
+			}
+			if (activeTweens.verticalRotation) {
+				activeTweens.verticalRotation.stop();
+				activeTweens.verticalRotation = null;
+			}
+
+
+
+			// Always clear and reset the timeout when clicking an image
+			if (autoRotationTimeout) {
+				clearTimeout(autoRotationTimeout);
+			}
+			autoRotationTimeout = setTimeout(() => {
+				returnToAutoRotation();
+			}, config.rotationPauseDuration);
+
+			currentRotationSpeed = 0;
+			sphere.userData.autoRotating = false;
+
+			// Store original rotation if we haven't clicked an image yet
+			if (sphere.userData.autoRotating) {
+				originalRotationY = sphere.rotation.y;
+			}
+
+			sphere.userData.autoRotating = false;
+
+			const targetPos = imageMesh.userData.initialPosition.clone();
+			const currentAngle = sphere.rotation.y % (Math.PI * 2);
+			const targetAngle = -Math.atan2(targetPos.x, targetPos.z);
+
+			let deltaAngle = targetAngle - currentAngle;
+			if (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
+			if (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
+
+			// Scale up the image
+			new TWEEN.Tween(imageMesh.scale)
+				.to({ x: config.imageScale * 1.5, y: config.imageScale * 1.5, z: config.imageScale * 1.5 }, 1000) // Adjust scale as needed
+				.easing(TWEEN.Easing.Cubic.InOut)
+				.start();
+
+			// Tween the position along this calculated vector
+			const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(imageMesh.quaternion);
+			const movement = normal.clone().multiplyScalar(config.activeImageDistance);
+			new TWEEN.Tween(imageMesh.position)
+				.to({
+					x: imageMesh.position.x + movement.x,
+					y: imageMesh.position.y + movement.y,
+					z: imageMesh.position.z + movement.z
+				}, config.activeImageTweenDuration)
+				.easing(TWEEN.Easing.Cubic.InOut)
+				.start();
+
+			// Animate vertical rotation
+			const targetVerticalAngle = Math.asin(targetPos.y / config.radius);
+			new TWEEN.Tween({
+				y: currentAngle,
+				x: sphere.rotation.x
+			})
+				.to({
+					y: currentAngle + deltaAngle,
+					x: targetVerticalAngle
+				}, 1000)
+				.easing(TWEEN.Easing.Cubic.InOut)
+				.onUpdate((obj) => {
+					sphere.rotation.y = obj.y;
+					sphere.rotation.x = obj.x;
+				})
+				.onComplete(() => {
+					isRotating = false;
+				})
+				.start();
+		}
+
+
+		function setCurrentImage(index) {
+
+			if (currentImageIndex == index) return;
+
+			if (currentImageIndex !== -1) {
+				let timing = (index === -1) ? 3000 : 500;
+				const mesh = imageMeshes[currentImageIndex];
+
+				// Scale down the image
+				new TWEEN.Tween(mesh.scale)
+					.to({ x: config.imageScale, y: config.imageScale, z: config.imageScale }, timing) // Reset scale to original size
+					.easing(TWEEN.Easing.Cubic.InOut)
+					.start();
+
+				// Tween the position along this calculated vector
+				const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion);
+				const movement = normal.clone().multiplyScalar(-config.activeImageDistance);
+				new TWEEN.Tween(mesh.position)
+					.to({
+						x: mesh.position.x + movement.x,
+						y: mesh.position.y + movement.y,
+						z: mesh.position.z + movement.z
+					}, config.activeImageTweenDuration)
+					.easing(TWEEN.Easing.Cubic.InOut)
+					.start();
+			}
+
+			currentImageIndex = index;
+		}
+
+		function showImageInfo(index) {
+			setCurrentImage(index);
+
+			const mesh = imageMeshes[index];
+			const imageData = mesh.userData.imageData;
+			const info = document.getElementById('info');
+			info.innerHTML = `
+        <h3>${imageData.title}</h3>
+        <p>${imageData.description}</p>
+        <a href="${imageData.url}" target="_blank">Learn More</a>
+    `;
+			info.style.display = 'block';
+		}
+		function clearImageInfo() {
+
+
+			setCurrentImage(-1);
+			const info = document.getElementById('info');
+			info.style.display = 'none';
+		}
+
+		// Animation loop
+		function animate() {
+			requestAnimationFrame(animate);
+			TWEEN.update();
+
+			if (!isRotating && sphere.userData.autoRotating) {
+				sphere.rotation.y += currentRotationSpeed * 0.01;
+			}
+
+			renderer.render(scene, camera);
+		}
+
+		// Add a click-away handler
+		function handleClickAway(event) {
+			// Get pointer position
+			const x = event.clientX || (event.touches ? event.touches[0].clientX : 0);
+			const y = event.clientY || (event.touches ? event.touches[0].clientY : 0);
+
+			mouse.x = (x / window.innerWidth) * 2 - 1;
+			mouse.y = -(y / window.innerHeight) * 2 + 1;
+
+			// Check if we clicked on an image
+			raycaster.setFromCamera(mouse, camera);
+			const intersects = raycaster.intersectObjects(imageMeshes, false);
+
+			// If we didn't click on an image and we're not already auto-rotating
+			if (intersects.length === 0 && !sphere.userData.autoRotating) {
+				// Clear any existing timeout before starting a new one
+				if (autoRotationTimeout) {
+					clearTimeout(autoRotationTimeout);
+				}
+				returnToAutoRotation();
+			}
+		}
+
+		// Add function to return to auto rotation
+		function returnToAutoRotation() {
+			if (isRotating) return;
+
+			if (autoRotationTimeout) {
+				clearTimeout(autoRotationTimeout);
+				autoRotationTimeout = null;
+			}
+
+
+			// If we already have active tweens, stop them
+			if (activeTweens.autoRotation) {
+				activeTweens.autoRotation.stop();
+			}
+			if (activeTweens.verticalRotation) {
+				activeTweens.verticalRotation.stop();
+			}
+
+
+
+			// Resume auto-rotation
+			isRotating = false;
+			sphere.userData.autoRotating = true;
+			clearImageInfo();
+
+			// Animate rotation speed from current to target
+			activeTweens.autoRotation = new TWEEN.Tween({ speed: currentRotationSpeed })
+				.to({ speed: config.rotationSpeed }, 3000)
+				.easing(TWEEN.Easing.Cubic.InOut)
+				.onUpdate((obj) => {
+					currentRotationSpeed = obj.speed;
+				})
+				.onComplete(() => {
+					activeTweens.autoRotation = null;
+				})
+				.start();
+
+			// Animate X rotation
+			activeTweens.verticalRotation = new TWEEN.Tween(sphere.rotation)
+				.to({ x: 0 }, 8000)
+				.easing(TWEEN.Easing.Cubic.InOut)
+				.onComplete(() => {
+					activeTweens.verticalRotation = null;
+				})
+				.start();
+		}
+
+
+		function updateLabel(input) {
+			const valueSpan = document.getElementById(`${input.id}-value`);
+			if (input.id === "imageScale" || input.id === "rotationSpeed") {
+				valueSpan.textContent = `${input.value}%`;
+			} else {
+				valueSpan.textContent = input.value;
+			}
+		}
+
+		function handleInput(input, updateFunction) {
+			let timeout;
+
+			if (input.id === 'imageScale' || input.id === 'rotationSpeed') {
+				input.value = config[input.id] * 100;
+			} else {
+				input.value = config[input.id];
+			}
+
+			updateLabel(input);
+
+			input.addEventListener("input", (e) => {
+				clearTimeout(timeout); // Reset the timeout on every input event
+
+				timeout = setTimeout(() => {
+					updateFunction(e);
+					updateLabel(input);
+				}, 300); // Adjust delay as needed
+			});
+		}
+
+		handleInput(document.getElementById('segments'), (e) => {
+			config.segments = parseInt(e.target.value);
+			createSphere();
+		});
+
+		handleInput(document.getElementById('rings'), (e) => {
+			config.rings = parseInt(e.target.value);
+			createSphere();
+		});
+
+		handleInput(document.getElementById('skipRings'), (e) => {
+			config.skipRings = parseInt(e.target.value);
+			createSphere();
+		});
+
+		handleInput(document.getElementById('imageScale'), (e) => {
+			config.imageScale = e.target.value / 100;
+			createSphere();
+		});
+
+		handleInput(document.getElementById('rotationSpeed'), (e) => {
+			config.rotationSpeed = e.target.value / 100;
+
+			// If we're currently auto-rotating, smoothly transition to new speed
+			if (sphere.userData.autoRotating) {
+				// Stop any existing speed tween
+				if (activeTweens.autoRotation) {
+					activeTweens.autoRotation.stop();
+				}
+
+				currentRotationSpeed = config.rotationSpeed;
+			}
+			updateLabel(e.target);
+		});
+
+
+
+		// Modify event listeners
+		renderer.domElement.addEventListener('mousedown', (event) => {
+			handlePointerEvent(event);
+			// Set timeout to return to auto-rotation
+			if (!sphere.userData.autoRotating && !autoRotationTimeout) {
+				autoRotationTimeout = setTimeout(() => {
+					returnToAutoRotation();
+				}, config.rotationPauseDuration);
+			}
+		});
+		renderer.domElement.addEventListener('touchstart', (event) => {
+			handlePointerEvent(event);
+			// Set timeout to return to auto-rotation
+			if (!sphere.userData.autoRotating && !autoRotationTimeout) {
+				autoRotationTimeout = setTimeout(() => {
+					returnToAutoRotation();
+				}, config.rotationPauseDuration);
+			}
+		}, { passive: false });
+
+		// Add click-away listener
+		document.addEventListener('mousedown', handleClickAway);
+		document.addEventListener('touchstart', handleClickAway, { passive: false });
+
+		window.addEventListener('resize', () => {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		});
+
+		// At the top with other globals
+		let currentImageIndex = -1;
+
+		// Then in keyboard navigation:
+
+		// Update the keyboard navigation
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'ArrowUp' || event.key === 'ArrowDown' ||
+				event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+				event.preventDefault();
+
+				if (!sphere || isRotating) return;
+
+				// Find current mesh
+				const currentMesh = imageMeshes.find(mesh => mesh.userData.imageIndex === currentImageIndex);
+				if (!currentMesh) return;
+
+				const currentRing = currentMesh.userData.ringIndex;
+				const currentSegment = currentMesh.userData.segmentIndex;
+
+				// Get actual available rings
+				const maxRingIndex = Math.max(...imageMeshes.map(mesh => mesh.userData.ringIndex));
+
+				let nextRing = currentRing;
+				let nextSegment = currentSegment;
+
+				// Handle horizontal movement (left/right)
+				if (event.key === 'ArrowRight') {
+					nextSegment = (currentSegment - 1 + config.segments) % config.segments;
+				} else if (event.key === 'ArrowLeft') {
+					nextSegment = (currentSegment + 1) % config.segments;
+				}
+				// Handle vertical movement (up/down)
+				else if (event.key === 'ArrowUp') {
+					if (currentRing > 0) {
+						nextRing = currentRing - 1;
+					}
+				} else if (event.key === 'ArrowDown') {
+					if (currentRing < maxRingIndex) {
+						nextRing = currentRing + 1;
+					}
+				}
+
+				// Find the EXACT next mesh at the target position
+				const nextMesh = imageMeshes.find(mesh =>
+					mesh.userData.ringIndex === nextRing &&
+					mesh.userData.segmentIndex === nextSegment
+				);
+
+				if (nextMesh) {
+					rotateToImage(nextMesh);
+					showImageInfo(nextMesh.userData.imageIndex);
+				}
+			}
+		});
+
+		// Initialize
+		loadTextures().then(() => {
+			createSphere();
+			sphere.userData.autoRotating = true;
+			animate();
+		});
+
+
+
+
+
+	</script>
+</body>
+
+</html>

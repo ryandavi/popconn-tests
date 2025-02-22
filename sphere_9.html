@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Billboard Sphere</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        camera.position.z = 2;
+
+        const imageUrls = [
+            'images/pioneers/1.jpg',
+            'images/pioneers/2.jpg',
+            'images/pioneers/3.jpg',
+            'images/pioneers/4.jpg',
+            'images/pioneers/5.jpg',
+            'images/pioneers/6.jpg',
+            'images/pioneers/7.jpg',
+            'images/pioneers/8.jpg',
+            'images/pioneers/9.jpg',
+            'images/pioneers/10.jpg',
+            'images/pioneers/11.jpg',
+            'images/pioneers/12.jpg'
+        ];
+
+        const RADIUS = 2;
+        const TOTAL_POINTS = 200;
+        const GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2;
+        
+        const points = [];
+        const billboards = [];
+        const animations = [];
+        let currentPoints = 0;
+        const pointsPerFrame = 1;
+        let textures = [];
+        let ready = false;
+
+        const textureLoader = new THREE.TextureLoader();
+        let loadedCount = 0;
+
+        function loadTextures() {
+            imageUrls.forEach((url, index) => {
+                textureLoader.load(
+                    url,
+                    (texture) => {
+                        textures[index] = texture;
+                        
+                        // Calculate aspect ratio for this texture
+                        const imageAspect = texture.image.width / texture.image.height;
+                        const baseSize = 0.4;
+                        const geometry = new THREE.PlaneGeometry(
+                            baseSize * imageAspect,
+                            baseSize
+                        );
+                        textures[index].geometry = geometry;
+                        
+                        loadedCount++;
+                        if (loadedCount === imageUrls.length) {
+                            ready = true;
+                            generatePoints();
+                            animate();
+                        }
+                    },
+                    undefined,
+                    (error) => {
+                        console.error(`Error loading texture ${url}:`, error);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 64;
+                        canvas.height = 64;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = `hsl(${(index / imageUrls.length) * 360}, 70%, 50%)`;
+                        ctx.fillRect(0, 0, 64, 64);
+                        textures[index] = new THREE.CanvasTexture(canvas);
+                        textures[index].geometry = new THREE.PlaneGeometry(0.4, 0.4);
+                        loadedCount++;
+                        if (loadedCount === imageUrls.length) {
+                            ready = true;
+                            generatePoints();
+                            animate();
+                        }
+                    }
+                );
+            });
+        }
+
+        function generatePoints() {
+            for (let i = 0; i < TOTAL_POINTS; i++) {
+                const phi = Math.acos(1 - 2 * (i + 0.5) / TOTAL_POINTS);
+                const theta = 2 * Math.PI * i / GOLDEN_RATIO;
+
+                const x = RADIUS * Math.sin(phi) * Math.cos(theta);
+                const y = RADIUS * Math.cos(phi);
+                const z = RADIUS * Math.sin(phi) * Math.sin(theta);
+
+                points.push({
+                    position: new THREE.Vector3(x, y, z),
+                    delay: Math.random() * 1000,
+                    scale: 0.5 + Math.random() * 0.5
+                });
+            }
+            
+            for (let i = points.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [points[i], points[j]] = [points[j], points[i]];
+            }
+        }
+
+        function addBillboard() {
+            if (currentPoints >= points.length) return;
+            
+            const point = points[currentPoints];
+            const textureIndex = currentPoints % textures.length;
+            const material = new THREE.MeshBasicMaterial({
+                map: textures[textureIndex],
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 1
+            });
+            
+            const billboard = new THREE.Mesh(textures[textureIndex].geometry, material);
+            billboard.position.copy(point.position);
+            billboard.scale.set(0, 0, 0);
+            
+            animations.push({
+                billboard: billboard,
+                startTime: performance.now() + point.delay,
+                duration: 1000,
+                targetScale: point.scale
+            });
+            
+            billboards.push(billboard);
+            scene.add(billboard);
+            
+            currentPoints++;
+        }
+
+        const sphereGroup = new THREE.Group();
+        scene.add(sphereGroup);
+
+        function animate() {
+            if (!ready) return;
+            
+            requestAnimationFrame(animate);
+            const currentTime = performance.now();
+            
+            for (let i = 0; i < pointsPerFrame; i++) {
+                addBillboard();
+            }
+            
+            animations.forEach(anim => {
+                if (currentTime >= anim.startTime) {
+                    const progress = Math.min(1, (currentTime - anim.startTime) / anim.duration);
+                    
+                    // Simple scale up animation
+                    const scale = anim.targetScale * progress;
+                    anim.billboard.scale.set(scale, scale, scale);
+                }
+            });
+            
+            sphereGroup.rotation.y += 0.003;
+            
+            billboards.forEach((billboard, i) => {
+                const point = points[i].position.clone();
+                point.applyAxisAngle(new THREE.Vector3(0, 1, 0), sphereGroup.rotation.y);
+                billboard.position.copy(point);
+                
+                // Make billboard always face front
+                billboard.quaternion.copy(camera.quaternion);
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        loadTextures();
+    </script>
+</body>
+</html>
