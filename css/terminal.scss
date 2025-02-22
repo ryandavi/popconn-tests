@@ -362,13 +362,14 @@ body#console {
 						caret-color: transparent;
 						width: fit-content;
 						min-width: unset;
-						field-sizing: content;
+						// field-sizing: content;
 						min-width: 0;
 						padding: 0;
 						margin: 0;
 						color: var(--user-color);
 						line-height: var(--line-height);
 						font-weight: inherit;
+						width: 0px;
 
 						&::placeholder {
 							font-style: italic;

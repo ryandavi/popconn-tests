@@ -442,6 +442,25 @@ class AlienTerminal {
 			this.elements.terminalInput.classList.remove('focused');
 		});
 
+		this.elements.input.addEventListener("input", (event) => {
+			if (event.target.tagName === "INPUT") {
+				const input = event.target;
+				const tempSpan = document.createElement("span");
+				
+				tempSpan.style.visibility = "hidden";
+				tempSpan.style.position = "absolute";
+				tempSpan.style.whiteSpace = "pre";
+				tempSpan.style.font = getComputedStyle(input).font;
+				tempSpan.textContent = input.value || input.placeholder || " ";
+				
+				document.body.appendChild(tempSpan);
+				input.style.width = tempSpan.offsetWidth + "px";
+				document.body.removeChild(tempSpan);
+			}
+		});
+
+
+
 		// mute button
 		this.elements.muteButton.addEventListener('click', this.toggleMute.bind(this));
 

@@ -260,13 +260,13 @@ body#console > .terminal > .terminal-input > label > .input-wrapper input.input 
   width: -moz-fit-content;
   width: fit-content;
   min-width: unset;
-  field-sizing: content;
   min-width: 0;
   padding: 0;
   margin: 0;
   color: var(--user-color);
   line-height: var(--line-height);
   font-weight: inherit;
+  width: 0px;
 }
 body#console > .terminal > .terminal-input > label > .input-wrapper input.input::-moz-placeholder {
   font-style: italic;
