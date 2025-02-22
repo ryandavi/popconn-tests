@@ -10,7 +10,7 @@ class AlienTerminal {
 
 		this.ENTER_KEY = 'Enter';
 		this.PASSWORD = 'alien123';
-		this.PASSWORD_LINK = "/layout.html";
+		this.PASSWORD_LINK = "layout.html";
 
 		this.CONSOLE_NAME = 'POPCONN';
 		this.USER_NAME = 'USER';
