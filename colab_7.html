@@ -57,7 +57,7 @@
 			max-width: 800px;
 			width: 100%;
 			display: flex;
-			margin: 20px;
+			margin-top: 20px;
 			z-index: 100000000;
 			left: 50%;
 			transform: translateX(-50%);
@@ -339,7 +339,7 @@
 			breakToRow: { duration: 2.5, camera: new THREE.Vector3(0, 0, 10)},
 			scrollRow: { duration: 1.5, camera: new THREE.Vector3(0, 0, 3)},
 			formFinalGrid: { duration: 2.5, camera: new THREE.Vector3(0, 0, 3), continuous: true},
-			finalView: { duration: 3, camera: new THREE.Vector3(0, 0, 5)}
+			finalView: { duration: 3, camera: new THREE.Vector3(0, 0, 4)}
 		};
 
 		// Compute start times dynamically, applying startTimeOffset
@@ -353,9 +353,9 @@
 
 		const cameraConfig = {
 			blendStartThreshold: 0.5,  // Start blending at 50% of the phase
-    blendDuration: 0.5,        // Blend over the next 50% of the phase
-    lerpSpeed: 0.05,           // Slow and smooth interpolation
-    defaultCameraPosition: new THREE.Vector3(0, 0, 15)
+			blendDuration: 0.5,        // Blend over the next 50% of the phase
+			lerpSpeed: 0.05,           // Slow and smooth interpolation
+			defaultCameraPosition: new THREE.Vector3(0, 0, 15)
 		};
 
 
