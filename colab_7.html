@@ -279,7 +279,7 @@
 		let additionalScrollRowDuration = -1.5;
 
 		// Timeline phases - with integrated camera positions
-		const phases = {
+		let phases = {
 			staggeredAppearance: {
 				start: 0,
 				duration: 3.5,
@@ -329,6 +329,35 @@
 			}
 		};
 
+		// testing
+		phases = {
+			staggeredAppearance: { duration: 1.5, camera: new THREE.Vector3(0, 0, 9)},
+			alignRows: { duration: .001, camera: new THREE.Vector3(0, 0, 9)},
+			formCurve: { duration: 2.3, camera: new THREE.Vector3(0, 0, 2)},
+			completeCylinder: { duration: 0.8, camera: new THREE.Vector3(0, 0, 8)},
+			cylinderRotation: { duration: 7.0, camera: new THREE.Vector3(0, 0, 8)},
+			breakToRow: { duration: 2.5, camera: new THREE.Vector3(0, 0, 10)},
+			scrollRow: { duration: 1.5, camera: new THREE.Vector3(0, 0, 3)},
+			formFinalGrid: { duration: 2.5, camera: new THREE.Vector3(0, 0, 3), continuous: true},
+			finalView: { duration: 3, camera: new THREE.Vector3(0, 0, 5)}
+		};
+
+		// Compute start times dynamically, applying startTimeOffset
+		let currentTime = 0;
+		for (const key in phases) {
+			let phase = phases[key];
+			phase.start = currentTime + (phase.startTimeOffset || 0);
+			currentTime = phase.start + phase.duration;
+		}
+
+
+		const cameraConfig = {
+			blendStartThreshold: 0.5,  // Start blending at 50% of the phase
+    blendDuration: 0.5,        // Blend over the next 50% of the phase
+    lerpSpeed: 0.05,           // Slow and smooth interpolation
+    defaultCameraPosition: new THREE.Vector3(0, 0, 15)
+		};
+
 
 		// Animation Configuration
 		const config = {
@@ -349,11 +378,10 @@
 			artist2Count: 8, // Second half for artist 2
 			artist1StartPosition: new THREE.Vector3(-20, 10, 0), // Top left
 			artist2StartPosition: new THREE.Vector3(20, 10, 0),  // Bottom right
-
-
-			scrollSpeed: 15 / phases.scrollRow.duration
-
 		};
+
+		// 
+		config.scrollSpeed = config.totalImages / phases.scrollRow.duration
 
 		let cylinderCurrentRotation = 0;
 		let cylinderRotationRate = 0;
@@ -1684,25 +1712,20 @@ function calculateCylinderPositions() {
 			}
 		}
 		function updateCamera() {
-			// Determine target camera position based on current and next phase
 			const currentPhaseName = currentPhase;
-			let targetPosition;
+			let targetPosition = cameraConfig.defaultCameraPosition;
 
-			// Get target position from current phase
-			if (phases[currentPhaseName] && phases[currentPhaseName].camera) {
-				targetPosition = phases[currentPhaseName].camera;
-			} else {
-				// Default position if camera not defined
-				targetPosition = new THREE.Vector3(0, 0, 15);
+			// Get camera position for the current phase
+			if (phases[currentPhaseName]?.camera) {
+				targetPosition = phases[currentPhaseName].camera.clone();
 			}
 
-			// Calculate progress within current phase to ease camera transition
+			// Get phase progress
 			const phaseProgress = getPhaseProgress(currentPhaseName);
-
-			// Find the next phase for smooth transitions between phases
 			let nextPhase = null;
 			let found = false;
 
+			// Find the next phase with a camera position
 			for (const [phaseName, phaseData] of Object.entries(phases)) {
 				if (found && phaseData.camera) {
 					nextPhase = phaseName;
@@ -1713,20 +1736,15 @@ function calculateCylinderPositions() {
 				}
 			}
 
-			// If we're near the end of the current phase and there's a next phase,
-			// start blending to next phase's camera position
-			if (nextPhase && phaseProgress > 0.75) {
-				const blendFactor = (phaseProgress - 0.75) / 0.25; // 0 to 1 in the last 25% of phase
+			// Start blending earlier and for a customizable duration
+			if (nextPhase && phaseProgress > cameraConfig.blendStartThreshold) {
+				const blendFactor = (phaseProgress - cameraConfig.blendStartThreshold) / cameraConfig.blendDuration;
 				const nextPosition = phases[nextPhase].camera;
-
-				// Blend between current and next phase camera positions
-				targetPosition = targetPosition.clone().lerp(nextPosition, easeInOutQuad(blendFactor));
+				targetPosition.lerp(nextPosition, easeInOutQuad(Math.min(blendFactor, 1)));
 			}
 
-			// Smoothly move camera to target position
-			camera.position.lerp(targetPosition, 0.05);
-
-			// Always look at the center
+			// Smoothly move camera towards target
+			camera.position.lerp(targetPosition, cameraConfig.lerpSpeed);
 			camera.lookAt(0, 0, 0);
 		}
 
