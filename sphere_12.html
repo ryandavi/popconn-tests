@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Combined Dynamic Billboards</title>
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+			background: #000;
+		}
+
+		canvas {
+			display: block;
+		}
+
+		#loading-images {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			color: white;
+			font-family: Arial, sans-serif;
+			font-size: 24px;
+			text-align: center;
+			background: rgba(0, 0, 0, 0.8);
+			padding: 20px;
+			border-radius: 10px;
+			z-index: 1000;
+		}
+
+		#stats {
+			position: fixed;
+			top: 10px;
+			left: 10px;
+			color: white;
+			font-family: monospace;
+			font-size: 12px;
+			background: rgba(0, 0, 0, 0.5);
+			padding: 5px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="loading-images">Loading...</div>
+	<div id="stats"></div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+	<script>
+		console.log("Script started");
+
+		// Customizable variables
+		const FOREGROUND_CONFIG = {
+			// Foreground settings
+			maxActiveBillboards: 400,        // Max number of billboards in the scene
+			initialBillboards: 150,          // Initial number of billboards to create
+			spawnRate: 5,                   // Billboards per second
+
+			// Space configuration
+			spawnDistance: -20,              // Distance from camera to spawn plane
+			spawnRadiusMin: 2,               // Min spawn radius from center
+			spawnRadiusMax: 10,              // Max spawn radius from center
+			exitDistance: 1,                 // Distance from camera when billboards exit
+			centerBias: 0.4,                 // Bias for movement toward center (0-1)
+
+			// Foreground scale settings
+			minScale: 0.4,                  // Minimum scale for distant billboards
+			maxScale: 1,                    // Maximum scale for close billboards
+			featuredImageScale: 2.0,         // Multiplier for featured images
+			featuredImageChance: 0.1,        // Chance (0-1) of an image being featured
+			scaleInDuration: 1.0,            // Duration in seconds for scale-in animation
+
+			rotationSpeed: 0.0055,
+
+			// Option to start with billboards closer to camera
+			startWithCloseBillboards: true,  // Start with some billboards closer to camera
+			closeBillboardCount: 20,         // Number of close billboards to start with
+			closeBillboardMinDist: -8,       // Minimum distance for close billboards
+			closeBillboardMaxDist: -3,       // Maximum distance for close billboards
+
+			// Movement settings
+			baseForwardSpeed: 1,             // Base speed toward camera (units per second)
+			speedVariation: 0.3,             // Random speed variation (0-1)
+			driftFactor: 1,                // Lateral drift amount
+
+			// Debug flag
+			debug: true                      // Enable debug console logs
+		};
+
+		// Background sphere config
+		const BACKGROUND_CONFIG = {
+			numberOfPoints: 200,
+			maxRadius: 20,
+			minRadius: 12,
+			minScale: 0.4,      // Minimum scale for distant sprites
+			maxScale: 2,      // Maximum scale for close sprites
+			rotationSpeed: 0.002,
+			waveIntensity: 0.05,
+			waveSpeed: 0.8,
+
+			// Scaling configuration
+			scaleMinTime: 1, // Minimum time in seconds for scaling animations
+			scaleMaxTime: 3, // Maximum time in seconds for scaling animations
+			scaleMinHoldTime: 2, // Minimum time in seconds to hold scale at 1
+			scaleMaxHoldTime: 4, // Maximum time in seconds to hold scale at 1
+		};
+
+		// Movement direction variables with smooth transitions
+		let movementDirection = { x: 0.05, y: 0.05, z: 0 };
+		let currentMovementDirection = { x: 0.05, y: 0.05, z: 0 };
+		let targetMovementDirection = { x: 0.05, y: 0.05, z: 0 };
+		let transitionProgress = 1; // Start at 1 (completed)
+		const transitionDuration = 60; // Frames to complete transition
+
+		// Main variables
+		let camera, scene, renderer;
+		let loadedTextures = [];
+		let loadedImages = 0;
+		let totalImagesToLoad = 0;
+		let frameCount = 0;
+		let fps = 0;
+		let lastFpsTime = 0;
+		let animationStarted = false;
+		let isLowPerformance = false;
+
+		// Billboard manager classes
+		let foregroundManager;
+		let backgroundManager;
+
+		// Debug
+		function debug(...args) {
+			if (FOREGROUND_CONFIG.debug) {
+				console.log(...args);
+			}
+		}
+
+		// Sample image URLs (replace with actual images)
+		const imageUrls = [
+			'images/pioneers/1.jpg',
+			'images/pioneers/2.jpg',
+			'images/pioneers/3.jpg',
+			'images/pioneers/4.jpg',
+			'images/pioneers/5.jpg',
+			'images/pioneers/6.jpg',
+			'images/pioneers/7.jpg',
+			'images/pioneers/8.jpg',
+			'images/pioneers/9.jpg',
+			'images/pioneers/10.jpg',
+			'images/pioneers/11.jpg',
+			'images/pioneers/12.jpg'
+		];
+
+		// Detect if running on mobile or slow device
+		function detectPerformance() {
+			isLowPerformance = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+				|| navigator.hardwareConcurrency <= 4;
+
+			if (isLowPerformance) {
+				FOREGROUND_CONFIG.maxActiveBillboards = Math.floor(FOREGROUND_CONFIG.maxActiveBillboards * 0.6);
+				FOREGROUND_CONFIG.initialBillboards = Math.floor(FOREGROUND_CONFIG.initialBillboards * 0.5);
+				BACKGROUND_CONFIG.numberOfPoints = Math.floor(BACKGROUND_CONFIG.numberOfPoints * 0.5);
+				BACKGROUND_CONFIG.waveIntensity *= 0.5;
+			}
+		}
+
+		// Foreground Billboard Manager Class
+
+		class ForegroundManager {
+			constructor(scene, textures) {
+				this.textures = textures;
+				this.billboards = [];
+				this.container = new THREE.Object3D();
+				scene.add(this.container);
+			}
+
+			initialize() {
+				debug("Initializing foreground billboards");
+
+				// Create the initial set of billboards
+				for (let i = 0; i < FOREGROUND_CONFIG.initialBillboards; i++) {
+					if (this.textures.length === 0) {
+						debug("No textures loaded yet, skipping billboard creation");
+						break;
+					}
+
+					const isFeatured = Math.random() < FOREGROUND_CONFIG.featuredImageChance;
+
+					// Create billboard
+					const billboard = this.createBillboard(isFeatured);
+
+					// For initial billboards, distribute throughout the volume
+					const z = FOREGROUND_CONFIG.spawnDistance + Math.random() * 15; // Distribute between z=spawnDistance and z=spawnDistance+15
+					billboard.sprite.position.z = z;
+
+					// Set initial scale based on position
+					const distFromCamera = camera.position.z - z;
+					const totalDistance = Math.abs(FOREGROUND_CONFIG.spawnDistance);
+					const distanceRatio = Math.max(0, Math.min(distFromCamera / totalDistance, 1));
+					billboard.targetScale = FOREGROUND_CONFIG.minScale + (FOREGROUND_CONFIG.maxScale - FOREGROUND_CONFIG.minScale) *
+						Math.pow(distanceRatio, 0.8);
+
+					// Featured images are larger
+					if (billboard.isFeatured) {
+						billboard.targetScale *= FOREGROUND_CONFIG.featuredImageScale;
+					}
+
+					// Randomly set the scale-in progress for initial billboards
+					billboard.scaleInProgress = Math.random();
+					billboard.scaleFactor = billboard.scaleInProgress;
+
+					// Apply initial scale
+					billboard.sprite.scale.set(
+						billboard.imageAspect * billboard.targetScale * billboard.scaleFactor,
+						billboard.targetScale * billboard.scaleFactor,
+						1
+					);
+				}
+
+				// Add close billboards if enabled
+				if (FOREGROUND_CONFIG.startWithCloseBillboards) {
+					for (let i = 0; i < FOREGROUND_CONFIG.closeBillboardCount; i++) {
+						if (this.textures.length === 0) break;
+
+						const isFeatured = Math.random() < FOREGROUND_CONFIG.featuredImageChance * 2; // Higher chance for featured
+
+						// Create billboard
+						const billboard = this.createBillboard(isFeatured);
+
+						// Position closer to camera
+						const angle = Math.random() * Math.PI * 2;
+						const radius = FOREGROUND_CONFIG.spawnRadiusMin + Math.random() * (FOREGROUND_CONFIG.spawnRadiusMax - FOREGROUND_CONFIG.spawnRadiusMin);
+
+						const x = Math.cos(angle) * radius * 0.7; // Tighter radius
+						const y = Math.sin(angle) * radius * 0.7;
+						const z = FOREGROUND_CONFIG.closeBillboardMinDist + Math.random() * (FOREGROUND_CONFIG.closeBillboardMaxDist - FOREGROUND_CONFIG.closeBillboardMinDist);
+
+						billboard.sprite.position.set(x, y, z);
+
+						// Set scale based on the closer position
+						const distFromCamera = camera.position.z - z;
+						const totalDistance = Math.abs(FOREGROUND_CONFIG.spawnDistance);
+						const distanceRatio = Math.max(0, Math.min(distFromCamera / totalDistance, 1));
+						billboard.targetScale = FOREGROUND_CONFIG.minScale + (FOREGROUND_CONFIG.maxScale - FOREGROUND_CONFIG.minScale) *
+							Math.pow(distanceRatio, 0.8);
+
+						// Featured images are larger
+						if (billboard.isFeatured) {
+							billboard.targetScale *= FOREGROUND_CONFIG.featuredImageScale;
+						}
+
+						// Set scale-in progress to almost complete
+						billboard.scaleInProgress = 0.8 + Math.random() * 0.2;
+						billboard.scaleFactor = billboard.scaleInProgress;
+
+						// Apply initial scale
+						billboard.sprite.scale.set(
+							billboard.imageAspect * billboard.targetScale * billboard.scaleFactor,
+							billboard.targetScale * billboard.scaleFactor,
+							1
+						);
+					}
+				}
+
+				debug("Created", this.billboards.length, "foreground billboards");
+			}
+
+			createBillboard(isFeatured = false) {
+				// Select random texture
+				const textureIndex = Math.floor(Math.random() * this.textures.length);
+				const texture = this.textures[textureIndex];
+
+				// Create material and sprite
+				const material = new THREE.SpriteMaterial({
+					map: texture,
+					transparent: true
+				});
+
+				const sprite = new THREE.Sprite(material);
+
+				// Calculate aspect ratio
+				const imageAspect = texture.image.width / texture.image.height;
+
+				// Initialize with scale 0 for smooth appearance
+				sprite.scale.set(0, 0, 1);
+
+				// Generate random position
+				const angle = Math.random() * Math.PI * 2;
+				const radius = FOREGROUND_CONFIG.spawnRadiusMin + Math.random() * (FOREGROUND_CONFIG.spawnRadiusMax - FOREGROUND_CONFIG.spawnRadiusMin);
+				const x = Math.cos(angle) * radius;
+				const y = Math.sin(angle) * radius;
+				const z = FOREGROUND_CONFIG.spawnDistance;
+
+				sprite.position.set(x, y, z);
+				this.container.add(sprite);
+
+				// Randomize speed slightly
+				const speedFactor = 1 + (Math.random() - 0.5) * FOREGROUND_CONFIG.speedVariation;
+
+				// Create billboard object with metadata
+				const billboard = {
+					sprite: sprite,
+					isFeatured: isFeatured,
+					velocity: new THREE.Vector3(
+						(Math.random() - 0.5) * FOREGROUND_CONFIG.driftFactor,
+						(Math.random() - 0.5) * FOREGROUND_CONFIG.driftFactor,
+						FOREGROUND_CONFIG.baseForwardSpeed * speedFactor
+					),
+					creationTime: Date.now(),
+					targetScale: FOREGROUND_CONFIG.minScale,
+					scaleFactor: 0, // Start at 0
+					scaleInProgress: 0, // Progress of scale-in animation (0 to 1)
+					imageAspect: imageAspect
+				};
+
+				this.billboards.push(billboard);
+				return billboard;
+			}
+
+			update(deltaTime) {
+				// Update main billboards
+				for (let i = this.billboards.length - 1; i >= 0; i--) {
+					const billboard = this.billboards[i];
+					const sprite = billboard.sprite;
+
+					// Apply velocity
+					const movementX = billboard.velocity.x * deltaTime;
+					const movementY = billboard.velocity.y * deltaTime;
+					const movementZ = billboard.velocity.z * deltaTime;
+
+					sprite.position.x += movementX;
+					sprite.position.y += movementY;
+					sprite.position.z += movementZ;
+
+					// Apply movement direction with individual variations
+					const distanceFactor = Math.max(0.2, Math.min(1, (camera.position.z - sprite.position.z) / 20));
+					const uniquenessFactor = 0.5 + Math.sin(billboard.creationTime * 0.001) * 0.5; // Unique per billboard
+					const featuredFactor = billboard.isFeatured ? 0.7 : 1.2; // Featured images move differently
+
+					// Apply movement direction with individual variations
+					sprite.position.x += movementDirection.x * deltaTime * distanceFactor * uniquenessFactor;
+					sprite.position.y += movementDirection.y * deltaTime * distanceFactor * featuredFactor;
+					sprite.position.z += movementDirection.z * deltaTime * uniquenessFactor * featuredFactor;
+
+					// Apply center bias (drift toward center)
+					const centerForceX = -sprite.position.x * FOREGROUND_CONFIG.centerBias * deltaTime;
+					const centerForceY = -sprite.position.y * FOREGROUND_CONFIG.centerBias * deltaTime;
+					sprite.position.x += centerForceX;
+					sprite.position.y += centerForceY;
+
+					// Update scale-in animation
+					if (billboard.scaleInProgress < 1) {
+						billboard.scaleInProgress += deltaTime / FOREGROUND_CONFIG.scaleInDuration;
+						if (billboard.scaleInProgress > 1) billboard.scaleInProgress = 1;
+
+						// Use ease-out function for smooth appearance
+						billboard.scaleFactor = 1 - Math.pow(1 - billboard.scaleInProgress, 3);
+					}
+
+					// Scale based on distance (further from camera = smaller)
+					const distFromCamera = camera.position.z - sprite.position.z;
+					const totalDistance = Math.abs(FOREGROUND_CONFIG.spawnDistance);
+
+				
+
+					const distanceRatio = Math.max(0, Math.min(distFromCamera / totalDistance, 1));
+
+					// Logarithmic scaling based on distance, with close-to-camera fade out
+					billboard.targetScale = FOREGROUND_CONFIG.minScale + (FOREGROUND_CONFIG.maxScale - FOREGROUND_CONFIG.minScale) *
+						Math.pow(distanceRatio, 0.8) ;
+
+					// Featured images are larger
+					if (billboard.isFeatured) {
+						billboard.targetScale *= FOREGROUND_CONFIG.featuredImageScale;
+					}
+
+					// Apply scale with aspect ratio correction and scale-in factor
+					sprite.scale.set(
+						billboard.imageAspect * billboard.targetScale * billboard.scaleFactor,
+						billboard.targetScale * billboard.scaleFactor,
+						1
+					);
+
+					// Remove billboards that are too close to camera, behind camera, or too far to sides
+					if (sprite.position.z > camera.position.z + FOREGROUND_CONFIG.exitDistance || // Behind camera
+						 // Too close to camera (1.0 units in front)
+						Math.abs(sprite.position.x) > FOREGROUND_CONFIG.spawnRadiusMax * 1.5 || // Far to sides
+						Math.abs(sprite.position.y) > FOREGROUND_CONFIG.spawnRadiusMax * 1.5) { // Far to top/bottom
+
+						this.container.remove(sprite);
+						this.billboards.splice(i, 1);
+					}
+				}
+
+
+				this.container.rotation.y += Math.sin(deltaTime * FOREGROUND_CONFIG.rotationSpeed) * FOREGROUND_CONFIG.rotationSpeed;
+
+				this.container.rotation.z += Math.sin(deltaTime * FOREGROUND_CONFIG.rotationSpeed * 0.5) * FOREGROUND_CONFIG.rotationSpeed;
+
+
+
+				// Spawn new billboards if below max count
+				if (this.textures.length > 0 && this.billboards.length < FOREGROUND_CONFIG.maxActiveBillboards) {
+					// Calculate number to spawn based on spawn rate and delta time
+					const toSpawn = Math.random() < (FOREGROUND_CONFIG.spawnRate * deltaTime) ? 1 : 0;
+
+					// Spawn new billboards
+					for (let i = 0; i < toSpawn; i++) {
+						if (this.billboards.length >= FOREGROUND_CONFIG.maxActiveBillboards) break;
+
+						const isFeatured = Math.random() < FOREGROUND_CONFIG.featuredImageChance;
+						this.createBillboard(isFeatured);
+					}
+				}
+			}
+
+			getCount() {
+				return this.billboards.length;
+			}
+		}
+
+		// Background Sphere Billboard Manager
+		// =====================================
+		class BackgroundManager {
+			constructor(scene, textures) {
+				this.textures = textures;
+				this.billboards = [];
+				this.container = new THREE.Object3D();
+				scene.add(this.container);
+			}
+
+			initialize() {
+				debug("Initializing background sphere billboards");
+
+				// Create the sphere of billboards
+				for (let i = 0; i < BACKGROUND_CONFIG.numberOfPoints; i++) {
+					if (this.textures.length === 0) {
+						debug("No textures loaded yet, skipping billboard creation");
+						break;
+					}
+
+					// Create a billboard in sphere formation
+					this.createSphereBillboard();
+				}
+
+				debug("Created", this.billboards.length, "background billboards");
+			}
+
+			createSphereBillboard() {
+				// Select random texture
+				const textureIndex = Math.floor(Math.random() * this.textures.length);
+				const texture = this.textures[textureIndex];
+
+				// Create material with texture
+				const material = new THREE.SpriteMaterial({
+					map: texture,
+					transparent: true
+				});
+
+				const sprite = new THREE.Sprite(material);
+
+				// Calculate aspect ratio
+				const imageAspect = texture.image.width / texture.image.height;
+
+				// Calculate a point on a sphere (distribute points evenly on sphere)
+				const radius = BACKGROUND_CONFIG.minRadius + Math.pow(Math.random(), 1 / 3) *
+					(BACKGROUND_CONFIG.maxRadius - BACKGROUND_CONFIG.minRadius);
+				const phi = Math.acos(2 * Math.random() - 1); // Latitude
+				const theta = 2 * Math.PI * Math.random(); // Longitude
+
+				const x = radius * Math.sin(phi) * Math.cos(theta);
+				const y = radius * Math.sin(phi) * Math.sin(theta);
+				const z = radius * Math.cos(phi);
+
+				sprite.position.set(x, y, z);
+
+				// Calculate initial scale based on distance from center
+				const distanceScale = 0.3 + (0.7 * (1 - radius / BACKGROUND_CONFIG.maxRadius)); // Smaller towards the edges
+				sprite.scale.set(imageAspect * distanceScale * BACKGROUND_CONFIG.maxScale,
+					distanceScale * BACKGROUND_CONFIG.maxScale, 1);
+
+				this.container.add(sprite);
+
+				// Create billboard object with metadata
+				const billboard = {
+					sprite: sprite,
+					initialPosition: new THREE.Vector3(x, y, z),
+					distanceToCamera: 0,
+					imageAspect: imageAspect,
+					// Animation state
+					targetScale: distanceScale * BACKGROUND_CONFIG.maxScale,
+					currentScale: distanceScale * BACKGROUND_CONFIG.maxScale,
+					scaleDirection: Math.random() > 0.5 ? 1 : -1, // 1 = growing, -1 = shrinking
+					scaleSpeed: (Math.random() * (BACKGROUND_CONFIG.scaleMaxTime - BACKGROUND_CONFIG.scaleMinTime) +
+						BACKGROUND_CONFIG.scaleMinTime),
+					scaleTimer: 0,
+					scaleHoldTime: Math.random() * (BACKGROUND_CONFIG.scaleMaxHoldTime - BACKGROUND_CONFIG.scaleMinHoldTime) +
+						BACKGROUND_CONFIG.scaleMinHoldTime,
+					isHolding: false,
+					holdTimer: 0
+				};
+
+				this.billboards.push(billboard);
+				return billboard;
+			}
+
+			updateBillboardScale(billboard, deltaTime) {
+				const sprite = billboard.sprite;
+
+				// Handle scale animation
+				if (!billboard.isHolding) {
+					// Actively scaling up or down
+					billboard.scaleTimer += deltaTime;
+					const progress = Math.min(1, billboard.scaleTimer / billboard.scaleSpeed);
+
+					if (billboard.scaleDirection > 0) {
+						// Growing
+						billboard.currentScale = BACKGROUND_CONFIG.minScale + (billboard.targetScale - BACKGROUND_CONFIG.minScale) *
+							(1 - Math.pow(1 - progress, 3)); // Ease out
+					} else {
+						// Shrinking
+						billboard.currentScale = billboard.targetScale + (BACKGROUND_CONFIG.minScale - billboard.targetScale) *
+							(1 - Math.pow(1 - progress, 3)); // Ease out
+					}
+
+					// When reaching max scale or min scale, hold for a while
+					if (progress >= 1) {
+						billboard.isHolding = true;
+						billboard.holdTimer = 0;
+
+						// When transitioning to hold at min scale, prepare to grow next
+						if (billboard.scaleDirection < 0) {
+							billboard.scaleDirection = 1;
+						} else {
+							billboard.scaleDirection = -1;
+						}
+					}
+				} else {
+					// Holding at current scale
+					billboard.holdTimer += deltaTime;
+					if (billboard.holdTimer >= billboard.scaleHoldTime) {
+						// Done holding, start scaling again
+						billboard.isHolding = false;
+						billboard.scaleTimer = 0;
+						// New random scale speed and hold time for variety
+						billboard.scaleSpeed = (Math.random() * (BACKGROUND_CONFIG.scaleMaxTime - BACKGROUND_CONFIG.scaleMinTime) +
+							BACKGROUND_CONFIG.scaleMinTime);
+						billboard.scaleHoldTime = Math.random() * (BACKGROUND_CONFIG.scaleMaxHoldTime - BACKGROUND_CONFIG.scaleMinHoldTime) +
+							BACKGROUND_CONFIG.scaleMinHoldTime;
+					}
+				}
+
+				// Apply scale with aspect ratio correction
+				sprite.scale.set(
+					billboard.imageAspect * billboard.currentScale,
+					billboard.currentScale,
+					1
+				);
+			}
+
+			update(deltaTime) {
+				const time = Date.now() * 0.001 * BACKGROUND_CONFIG.waveSpeed;
+
+				// Update container rotation (slow rotation of entire background sphere)
+				this.container.rotation.y += Math.sin(time * BACKGROUND_CONFIG.rotationSpeed) * BACKGROUND_CONFIG.rotationSpeed;
+				this.container.rotation.x += Math.cos(time * BACKGROUND_CONFIG.rotationSpeed) * BACKGROUND_CONFIG.rotationSpeed;
+				this.container.rotation.z += Math.sin(time * BACKGROUND_CONFIG.rotationSpeed * 0.5) * BACKGROUND_CONFIG.rotationSpeed;
+
+				// Only update positions if not on low performance mode or every other frame
+				if (!isLowPerformance || frameCount % 2 === 0) {
+					for (let i = 0; i < this.billboards.length; i++) {
+						const billboard = this.billboards[i];
+						const sprite = billboard.sprite;
+						const initialPos = billboard.initialPosition;
+
+						// Apply wave motion
+						const waveX = Math.sin(time + initialPos.x) * BACKGROUND_CONFIG.waveIntensity;
+						const waveY = Math.cos(time + initialPos.y) * BACKGROUND_CONFIG.waveIntensity;
+						const waveZ = Math.sin(time + initialPos.z) * BACKGROUND_CONFIG.waveIntensity;
+
+						sprite.position.x = initialPos.x + waveX;
+						sprite.position.y = initialPos.y + waveY;
+						sprite.position.z = initialPos.z + waveZ;
+
+						// Update scale animations
+						this.updateBillboardScale(billboard, deltaTime);
+					}
+				}
+			}
+
+			getCount() {
+				return this.billboards.length;
+			}
+		}
+
+		function updateLoadingProgress() {
+			const progress = Math.floor((loadedImages / totalImagesToLoad) * 100);
+			document.getElementById('loading-images').innerHTML = `Loading... ${progress}%`;
+
+			if (loadedImages >= totalImagesToLoad) {
+				document.getElementById('loading-images').style.display = 'none';
+				if (!animationStarted) {
+					debug("All images loaded, starting animation");
+
+					// Initialize both billboard managers
+					foregroundManager = new ForegroundManager(scene, loadedTextures);
+					backgroundManager = new BackgroundManager(scene, loadedTextures);
+
+					foregroundManager.initialize();
+					backgroundManager.initialize();
+
+					animationStarted = true;
+					animate();
+				}
+			}
+		}
+
+		function init() {
+			debug("Initializing");
+
+			// Initialize core Three.js components
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x000000);
+
+			camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+			camera.position.z = 0; // Position camera at z=0
+
+			debug("Camera position set to:", camera.position);
+
+			renderer = new THREE.WebGLRenderer({ antialias: !isLowPerformance });
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setPixelRatio(isLowPerformance ? 1 : window.devicePixelRatio);
+			document.body.appendChild(renderer.domElement);
+
+			debug("Three.js components initialized");
+
+			// Preload actual textures
+			const textureLoader = new THREE.TextureLoader();
+			textureLoader.crossOrigin = 'anonymous';
+
+			totalImagesToLoad = imageUrls.length;
+			debug("Starting to load", totalImagesToLoad, "images");
+
+			// Preload all textures
+			imageUrls.forEach((url, index) => {
+				textureLoader.load(
+					url,
+					(texture) => {
+						loadedTextures.push(texture);
+						loadedImages++;
+						debug(`Loaded image ${loadedImages}/${totalImagesToLoad}`);
+						updateLoadingProgress();
+					},
+					undefined,
+					(error) => {
+						console.error('Error loading texture:', error);
+						loadedImages++;
+						updateLoadingProgress();
+					}
+				);
+			});
+
+			// Event listeners
+			window.addEventListener('resize', onWindowResize, false);
+			renderer.domElement.addEventListener('wheel', onMouseWheel, { passive: false });
+
+			debug("Initialization complete");
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		function onMouseWheel(event) {
+			event.preventDefault();
+			// Adjust camera for viewing background if needed
+			const delta = event.deltaY > 0 ? 1 : -1;
+			camera.position.z += delta * 0.5;
+
+			// Limit the range to prevent going too far backward
+			camera.position.z = Math.max(-15, Math.min(5, camera.position.z));
+		}
+
+		function updateFPS() {
+			frameCount++;
+			const now = Date.now();
+			const delta = now - lastFpsTime;
+
+			if (delta >= 1000) {
+				fps = Math.round((frameCount * 1000) / delta);
+				frameCount = 0;
+				lastFpsTime = now;
+
+				// Update stats display
+				document.getElementById('stats').innerHTML =
+					`FPS: ${fps}<br>` +
+					`Foreground: ${foregroundManager ? foregroundManager.getCount() : 0}<br>` +
+					`Background: ${backgroundManager ? backgroundManager.getCount() : 0}<br>` +
+					`Camera Z: ${camera ? camera.position.z.toFixed(2) : "N/A"}<br>` +
+					`LowPerf: ${isLowPerformance ? "YES" : "NO"}`;
+			}
+		}
+
+
+		let lastTimestamp = 0;
+		function animate(timestamp) {
+			requestAnimationFrame(animate);
+
+			// Calculate delta time (in seconds)
+			const deltaTime = lastTimestamp ? Math.min((timestamp - lastTimestamp) / 1000, 0.1) : 0.016;
+			lastTimestamp = timestamp;
+
+			// Update movement direction with smooth transition
+			if (frameCount % 200 === 0) {
+				// Start a new transition
+				currentMovementDirection = { ...movementDirection };
+				targetMovementDirection = {
+					x: (Math.random() - 0.5) / 50, // Allow negative values for more variety
+					y: (Math.random() - 0.5) / 50,
+					z: (Math.random() - 0.1) / 200, // Smaller z variation
+				};
+				transitionProgress = 0; // Reset transition progress
+			}
+
+			// Update transition progress
+			if (transitionProgress < 1) {
+				transitionProgress += 1 / transitionDuration;
+				if (transitionProgress > 1) transitionProgress = 1;
+
+				// Smooth transition using easing function (cubic ease in-out)
+				const t = transitionProgress < 0.5
+					? 4 * transitionProgress * transitionProgress * transitionProgress
+					: 1 - Math.pow(-2 * transitionProgress + 2, 3) / 2;
+
+				// Interpolate between current and target
+				movementDirection.x = currentMovementDirection.x + (targetMovementDirection.x - currentMovementDirection.x) * t;
+				movementDirection.y = currentMovementDirection.y + (targetMovementDirection.y - currentMovementDirection.y) * t;
+				movementDirection.z = currentMovementDirection.z + (targetMovementDirection.z - currentMovementDirection.z) * t;
+			}
+
+			// Update billboard managers
+			foregroundManager.update(deltaTime);
+			backgroundManager.update(deltaTime);
+
+			// Render
+			renderer.render(scene, camera);
+
+			// Update FPS counter
+			updateFPS();
+		}
+
+		// Remove all duplicate functions that appear after the animate function
+
+		// Keep just this single event listener at the end of the script
+		document.addEventListener('DOMContentLoaded', () => {
+			debug("DOM content loaded");
+			detectPerformance();
+			init();
+		});
+	</script>
+</body>

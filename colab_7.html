@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Three.js Animation Sequence</title>
+	<!-- Import Three.js from CDN -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+		body {
+			margin: 0;
+			overflow: hidden;
+			background-color: #161616;
+			
+		}
+
+		button, body, input {
+			font-family: "Space Mono", monospace;
+			font-weight: 400;
+			font-style: normal;
+			font-weight: bold;
+			text-transform: uppercase;
+			letter-spacing: .25px;
+			font-size: 16px;
+		}
+
+		#animation-container {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+		}
+
+		#controls {
+			position: absolute;
+			bottom: 20px;
+			left: 20px;
+			z-index: 100;
+			background-color: rgba(0, 0, 0, 0.7);
+			padding: 10px;
+			border-radius: 5px;
+			color: white;
+			font-family: Arial, sans-serif;
+			display: none;
+		}
+
+
+
+
+
+		.collab {
+			background-color: #242424;
+			position: fixed;
+			max-width: 800px;
+			width: 100%;
+			display: flex;
+			margin: 20px;
+			z-index: 100000000;
+			left: 50%;
+			transform: translateX(-50%);
+			border-radius: 16px;
+			color: #D4D4D4;
+			font-weight: bold;
+			padding: 16px;
+
+			box-shadow: 8px 8px 8px 0 rgba(0, 0, 0, 0.2) !important;
+		}
+
+		.collab .left,
+		.collab .right {
+			width: 50%;
+			padding: 20px;
+			display: flex;
+			gap: 16px;
+			border-radius: 8px;
+
+			background-color: #3A3A3A;
+			align-items: center;
+		}
+
+		.collab .left .image,
+		.collab .right .image {
+			width: 100px;
+			height: 100px;
+			background-color: grey;
+			border-radius: 5000px;
+		}
+
+		.collab .right {
+			flex-direction: row-reverse;
+		}
+
+		.collab .center {
+			flex-grow: 1;
+			padding: 20px;
+			display: flex;
+			align-items: center;
+		}
+
+
+
+
+
+		button {
+			margin: 5px;
+			padding: 5px 10px;
+			cursor: pointer;
+		}
+
+		.slider-container {
+			margin: 10px 0;
+		}
+
+		label {
+			display: inline-block;
+			width: 120px;
+		}
+
+		.grid-ui-container {
+			position: absolute;
+			top: 0;
+			left: 0;
+			pointer-events: none;
+			width: 100%;
+			height: 100%;
+			z-index: 1000;
+		}
+
+		.image-overlay {
+			position: absolute;
+			border-radius: 16px;
+			overflow: hidden;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+			pointer-events: auto;
+			opacity: 0;
+			transition: opacity 0.2s ease;
+		}
+
+		.image-overlay.visible {
+			opacity: 1;
+		}
+
+		.top-actions,
+		.bottom-actions {
+			position: absolute;
+			left: 8px;
+			right: 8px;
+			display: flex;
+			justify-content: space-between;
+			z-index: 1;
+		}
+
+		.top-actions {
+			top: 8px;
+		}
+
+		.bottom-actions {
+			bottom: 8px;
+		}
+
+		.action-btn {
+			background-color: white;
+			border-radius: 50%;
+			width: 32px;
+			height: 32px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+			border: none;
+			outline: none;
+		}
+
+		.action-btn svg {
+			width: 16px;
+			height: 16px;
+		}
+
+		.save-btn {
+			background-color: #e60023;
+			color: white;
+			border-radius: 24px;
+			padding: 8px 12px;
+			font-size: 14px;
+			font-weight: bold;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			border: none;
+			outline: none;
+		}
+
+		.save-btn svg {
+			margin-right: 4px;
+		}
+
+		.dropdown-btn {
+			margin-left: 4px;
+			padding: 0 4px;
+		}
+
+		.feedback-btns,
+		.share-favorite-btns {
+			display: flex;
+			gap: 8px;
+		}
+
+		.action-btn.share-btn {
+			margin-left: auto;
+		}
+
+		.action-btn.download-btn {
+			width: auto;
+			border-radius: 5px;
+			height: auto;
+			padding: 10px;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="collab">
+		<div id="artist-1" class="left">
+			<div id="artist-1-image" class="image">
+			</div> Muse
+		</div>
+		<div class="center">
+			<button id="collab"> Collab </button>
+		</div>
+		<div id="artist-2" class="right">
+			<div id="artist-2-image" class="image">
+			</div> Visual Artist
+		</div>
+	</div>
+	<div id="animation-container"></div>
+	<div id="controls">
+		<div>
+			<button id="play-pause">Pause</button>
+			<button id="restart">Restart</button>
+		</div>
+		<div class="slider-container">
+			<label for="timeline">Timeline:</label>
+			<input type="range" id="timeline" min="0" max="20" step="0.1" value="0">
+			<span id="time-display">0.0s</span>
+		</div>
+		<div class="slider-container">
+			<strong>Current Phase: </strong><span id="phase-display">Loading...</span>
+		</div>
+		<div class="slider-container">
+			<label for="columns">Columns:</label>
+			<input type="range" id="columns" min="2" max="6" step="1" value="4">
+			<span id="columns-display">4</span>
+		</div>
+		<div class="slider-container">
+			<label for="rows">Rows:</label>
+			<input type="range" id="rows" min="2" max="6" step="1" value="4">
+			<span id="rows-display">4</span>
+		</div>
+		<div class="slider-container">
+			<label for="image-spacing">Spacing:</label>
+			<input type="range" id="image-spacing" min="0.1" max="1.5" step="0.1" value="0.5">
+			<span id="spacing-display">0.5</span>
+		</div>
+		<div class="slider-container">
+			<label for="rotation-speed">Rotation Speed:</label>
+			<input type="range" id="rotation-speed" min="0.1" max="2" step="0.1" value="0.5">
+			<span id="speed-display">0.5</span>
+		</div>
+	</div>
+	<!-- Three.js Library is now imported in the head section -->
+	<!-- Animation Script -->
+	<script>
+
+		let additionalRotationTime = 2.0;
+		let additionalScrollRowDuration = -1.5;
+
+		// Timeline phases - with integrated camera positions
+		const phases = {
+			staggeredAppearance: {
+				start: 0,
+				duration: 3.5,
+				camera: new THREE.Vector3(0, 0, 9)
+			},
+			alignRows: {
+				start: 3.5,
+				duration: 1.2,
+				camera: new THREE.Vector3(0, 0, 9)
+			},
+			formCurve: {
+				start: 4.7,
+				duration: 2.3,
+				camera: new THREE.Vector3(0, 0, 2)
+			},
+			completeCylinder: {
+				start: 7,
+				duration: 0.8,
+				camera: new THREE.Vector3(0, 0, 8)
+			},
+			cylinderRotation: {
+				start: 7.8,
+				duration: 5.0 + additionalRotationTime,
+				camera: new THREE.Vector3(0, 0, 8)
+			},
+			breakToRow: {
+				start: 12.8 + additionalRotationTime,
+				duration: 2.5,
+				camera: new THREE.Vector3(0, 0, 10)
+			},
+			scrollRow: {
+				start: 15.3 + additionalRotationTime,
+				duration: 3 + additionalScrollRowDuration,
+				camera: new THREE.Vector3(0, 0, 3)
+			},
+			formFinalGrid: {
+				start: 18.3 + additionalRotationTime + additionalScrollRowDuration,
+				duration: 2.5,
+				camera: new THREE.Vector3(0, 0, 3),
+				continuous: true  // Flag to indicate continuous motion from previous phase
+			},
+			finalView: {
+				start: 20.8 + additionalRotationTime + additionalScrollRowDuration,
+				duration: 3,
+				camera: new THREE.Vector3(0, 0, 5)
+
+			}
+		};
+
+
+		// Animation Configuration
+		const config = {
+			columns: 4,
+			rows: 4,
+			imageWidth: 2,
+			imageHeight: 1.2,
+			spacing: 0.05, // Will be set to 0 during alignRows
+			staggerDelay: 0.08,
+			cylinderRadius: 5,
+			totalImages: 16,
+			rotationSpeed: .8,
+			finalRowImages: 8,
+			finalRowColumns: 2,
+			finalRowRows: 2,
+			
+			artist1Count: 8, // First half for artist 1
+			artist2Count: 8, // Second half for artist 2
+			artist1StartPosition: new THREE.Vector3(-20, 10, 0), // Top left
+			artist2StartPosition: new THREE.Vector3(20, 10, 0),  // Bottom right
+
+
+			scrollSpeed: 15 / phases.scrollRow.duration
+
+		};
+
+		let cylinderCurrentRotation = 0;
+		let cylinderRotationRate = 0;
+
+		// Add this code to control animation start with button
+		let animationStarted = false;
+		let pausedBeforeStart = false;
+
+
+
+		// Initialize Three.js scene
+		let scene, camera, renderer, clock;
+		let imageGroup, images = [];
+
+		// Image textures
+		const textureLoader = new THREE.TextureLoader();
+		const imageSources = Array(config.totalImages).fill().map((_, i) =>
+			`https://picsum.photos/400/240?random=${i}`); // Placeholder images with random parameter
+		const textures = [];
+
+		// Animation state
+		let animationTime = 0;
+		let cylinderRotationSpeed = 0;
+		let currentPhase = '';
+		let cylinderRotationStarted = false;
+
+
+
+
+
+
+
+		function getDomElementPosition(elementId) {
+			const element = document.getElementById(elementId);
+			if (!element) return null;
+
+			// Get the bounding rect of the element
+			const rect = element.getBoundingClientRect();
+
+			// Get viewport dimensions
+			const vpWidth = window.innerWidth;
+			const vpHeight = window.innerHeight;
+
+			// Calculate position as a percentage of viewport (0 to 1)
+			let percentX, percentY;
+
+			if (elementId == 'artist-1-image') {
+				percentX = (rect.left + rect.width + 100) / vpWidth;
+				percentY = (rect.top + rect.height + 100) / vpHeight;
+			} else {
+				percentX = (rect.left - 100) / vpWidth;
+				percentY = (rect.top + rect.height + 100) / vpHeight;
+			}
+
+
+			// Map to a position that makes sense for your scene
+			// This uses your current camera field of view and position to determine the visible area
+			const vFOV = camera.fov * Math.PI / 180; // vertical field of view in radians
+			const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z);
+			const width = height * camera.aspect;
+
+			// Convert to Three.js coordinates
+			// (0,0) is center, (-1,-1) is bottom left, (1,1) is top right
+			const worldX = (percentX * 2 - 1) * (width / 2);
+			const worldY = -(percentY * 2 - 1) * (height / 2); // Flip Y axis
+
+			console.log(`${elementId} converted position:`, { x: worldX, y: worldY });
+
+			return new THREE.Vector3(worldX, worldY, 0);
+		}
+
+
+
+
+
+
+
+		// Easing functions for smoother transitions
+		function easeInOutCubic(t) {
+			return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+		}
+
+		function easeInOutQuad(t) {
+			return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+		}
+
+		function easeOutQuint(t) {
+			return 1 - Math.pow(1 - t, 5);
+		}
+
+		function easeInQuint(t) {
+			return t * t * t * t * t;
+		}
+
+		// Custom easing function for more gradual deceleration
+		function customSlowEaseOut(t) {
+			// This function will maintain higher values for longer
+			// and only drop off very gradually at the end
+			return 1 - Math.pow(1 - t, 3);
+		}
+
+		function init() {
+			// Original init code...
+			scene = new THREE.Scene();
+			scene.background = null;
+
+			// Create camera
+			camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.z = 15;
+
+			// Create renderer
+			renderer = new THREE.WebGLRenderer({ antialias: true , alpha: true });
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setPixelRatio(window.devicePixelRatio);
+			document.body.appendChild(renderer.domElement);
+
+			// Initialize clock
+			clock = new THREE.Clock();
+
+			// Create image container group
+			
+			imageGroup = new THREE.Group();
+			scene.add(imageGroup);
+
+			// Get positions from DOM elements
+			const artist1Position = getDomElementPosition('artist-1-image') || config.artist1StartPosition;
+			const artist2Position = getDomElementPosition('artist-2-image') || config.artist2StartPosition;
+
+			// Update the config with these positions
+			config.artist1StartPosition = artist1Position;
+			config.artist2StartPosition = artist2Position;
+
+			// Load textures
+			loadTextures().then(() => {
+				createImages();
+
+				// Pause animation initially
+				pausedBeforeStart = true;
+				clock.stop();
+
+				// Setup collab button click event
+				const collabButton = document.getElementById('collab');
+				if (collabButton) {
+					collabButton.addEventListener('click', startAnimation);
+					// disable button
+
+				}
+			});
+
+			// Set up window resize handler
+			window.addEventListener('resize', onWindowResize);
+
+			// Start animation loop (will render static scene until button click)
+			animate();
+		}
+
+		// Function to start animation on button click
+		function startAnimation() {
+			if (!animationStarted) {
+				animationStarted = true;
+				pausedBeforeStart = false;
+
+				const collabButton = document.getElementById('collab');
+				collabButton.disabled = true;
+
+				// Reset animation time to ensure we start at the beginning
+				animationTime = 0;
+
+				// Start the clock
+				clock.start();
+
+				// Update play/pause button text if it exists
+				const playPauseBtn = document.getElementById('play-pause');
+				if (playPauseBtn) {
+					playPauseBtn.textContent = 'Pause';
+				}
+			}
+		}
+
+
+
+
+		// Improve the position calculation in the setupGridInteractions function
+		function setupGridInteractions() {
+			// Only run once when the grid is created
+			if (!window.gridImagesInteractive && window.gridImages) {
+				window.gridImagesInteractive = true;
+
+				// Add raycaster for mouse interactions
+				const raycaster = new THREE.Raycaster();
+				const mouse = new THREE.Vector2();
+				let hoveredImage = null;
+
+				// Create UI elements for hover and click states
+				function createUI() {
+					// Container for UI elements
+					const uiContainer = document.createElement('div');
+					uiContainer.className = 'grid-ui-container';
+					document.body.appendChild(uiContainer);
+
+					// Create overlays for each grid image
+					window.gridImages.forEach(image => {
+						const overlay = document.createElement('div');
+						overlay.className = 'image-overlay';
+						overlay.style.display = 'none'; // Hidden by default
+
+						// Top actions (Download button)
+						const topActions = document.createElement('div');
+						topActions.className = 'top-actions actions-container';
+
+						const downloadBtn = document.createElement('button');
+						downloadBtn.className = 'action-btn download-btn';
+						downloadBtn.innerHTML = `Download`;
+
+						topActions.appendChild(downloadBtn);
+
+						// Bottom actions (Like, Share, Favorite)
+						const bottomActions = document.createElement('div');
+						bottomActions.className = 'bottom-actions actions-container';
+
+						const likeBtn = document.createElement('button');
+						likeBtn.className = 'action-btn like-btn';
+						likeBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="#111">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+        </svg>
+        `;
+
+						const shareBtn = document.createElement('button');
+						shareBtn.className = 'action-btn share-btn';
+						shareBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="#111">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"></path>
+        </svg>
+        `;
+
+						const favoriteBtn = document.createElement('button');
+						favoriteBtn.className = 'action-btn favorite-btn';
+						favoriteBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="#111">
+          <path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"></path>
+        </svg>
+        `;
+
+						bottomActions.append(likeBtn, shareBtn, favoriteBtn);
+
+						// Add actions to overlay
+						overlay.append(topActions, bottomActions);
+
+						// Add event listeners for buttons
+						downloadBtn.addEventListener('click', (e) => {
+							e.stopPropagation();
+							console.log('Download image:', image.userData.index);
+							alert('Image downloaded!');
+						});
+
+						likeBtn.addEventListener('click', (e) => {
+							e.stopPropagation();
+							console.log('Like image:', image.userData.index);
+						});
+
+						shareBtn.addEventListener('click', (e) => {
+							e.stopPropagation();
+							console.log('Share image:', image.userData.index);
+						});
+
+						favoriteBtn.addEventListener('click', (e) => {
+							e.stopPropagation();
+							console.log('Favorite image:', image.userData.index);
+							favoriteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="#e60023">
+              <path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24z"></path>
+            </svg>
+          `;
+						});
+
+						// Store overlay reference in image userData
+						image.userData.overlay = overlay;
+
+						// Add overlay to container
+						uiContainer.appendChild(overlay);
+					});
+
+					return { uiContainer };
+				}
+
+				// Create UI elements
+				const { uiContainer } = createUI();
+
+				// Show Pinterest-style UI overlay for an image
+				function showOverlay(image) {
+					if (image && image.userData.overlay) {
+						// Get the world position of the image
+						const worldPos = new THREE.Vector3();
+						image.getWorldPosition(worldPos);
+
+						// Project to screen space
+						const screenPos = worldPos.clone().project(camera);
+
+						// Convert to pixel coordinates
+						const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+						const y = (1 - (screenPos.y * 0.5 + 0.5)) * window.innerHeight;
+
+						// Calculate image dimensions in screen space
+						// Get the width and height of the image in world units
+						const imageWidth = config.imageWidth;
+						const imageHeight = config.imageHeight;
+
+						// Create vectors for all four corners in local space
+						const halfWidth = imageWidth / 2;
+						const halfHeight = imageHeight / 2;
+
+						const topRight = new THREE.Vector3(halfWidth, halfHeight, 0);
+						const bottomRight = new THREE.Vector3(halfWidth, -halfHeight, 0);
+						const bottomLeft = new THREE.Vector3(-halfWidth, -halfHeight, 0);
+						const topLeft = new THREE.Vector3(-halfWidth, halfHeight, 0);
+
+						// Transform corners to world space and project to screen
+						const corners = [topLeft, topRight, bottomRight, bottomLeft].map(corner => {
+							const worldCorner = corner.clone().applyMatrix4(image.matrixWorld);
+							const screenCorner = worldCorner.clone().project(camera);
+							return {
+								x: (screenCorner.x * 0.5 + 0.5) * window.innerWidth,
+								y: (1 - (screenCorner.y * 0.5 + 0.5)) * window.innerHeight
+							};
+						});
+
+						// Find the bounds
+						let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+						corners.forEach(corner => {
+							minX = Math.min(minX, corner.x);
+							minY = Math.min(minY, corner.y);
+							maxX = Math.max(maxX, corner.x);
+							maxY = Math.max(maxY, corner.y);
+						});
+
+						// Calculate width and height
+						const width = maxX - minX;
+						const height = maxY - minY;
+
+						// Safety check to ensure we have valid dimensions
+						if (width <= 0 || height <= 0 || !isFinite(width) || !isFinite(height)) {
+							console.warn("Invalid overlay dimensions:", width, height);
+							return;
+						}
+
+						// Position overlay
+						const overlay = image.userData.overlay;
+						overlay.style.display = 'block';
+						overlay.style.left = `${minX}px`;
+						overlay.style.top = `${minY}px`;
+						overlay.style.width = `${width}px`;
+						overlay.style.height = `${height}px`;
+
+						// Debug log the dimensions
+						console.log("Overlay position:", {
+							left: minX,
+							top: minY,
+							width: width,
+							height: height
+						});
+
+						// Show with animation
+						setTimeout(() => {
+							overlay.classList.add('visible');
+						}, 10);
+					}
+				}
+
+				// Hide Pinterest-style UI overlay
+				function hideOverlay(image) {
+					if (image && image.userData.overlay) {
+						const overlay = image.userData.overlay;
+						overlay.classList.remove('visible');
+
+						// Wait for transition to complete before hiding
+						setTimeout(() => {
+							overlay.style.display = 'none';
+						}, 200);
+					}
+				}
+
+				// Handle mouse move for hover effects
+				function onMouseMove(event) {
+					// Only process if we're in the final grid phase
+					if (currentPhase !== 'finalView') {
+						if (hoveredImage) {
+							hideOverlay(hoveredImage);
+							hoveredImage = null;
+						}
+						return;
+					}
+
+					// Calculate mouse position in normalized device coordinates
+					mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+					mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+					// Update the raycaster
+					raycaster.setFromCamera(mouse, camera);
+
+					// Check for intersections with grid images
+					const intersects = raycaster.intersectObjects(window.gridImages);
+
+					// Clear previous hover state
+					if (hoveredImage && (!intersects.length || intersects[0].object !== hoveredImage)) {
+						hideOverlay(hoveredImage);
+						hoveredImage = null;
+					}
+
+					// Set new hover state
+					if (intersects.length > 0) {
+						const intersectedImage = intersects[0].object;
+
+						// If it's a new hover
+						if (hoveredImage !== intersectedImage) {
+							if (hoveredImage) {
+								hideOverlay(hoveredImage);
+							}
+
+							hoveredImage = intersectedImage;
+							showOverlay(hoveredImage);
+						}
+					}
+				}
+
+				// Add event listeners
+				window.addEventListener('mousemove', onMouseMove);
+				window.addEventListener('click', (event) => {
+					// Calculate mouse position in normalized device coordinates
+					mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+					mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+					// Update the raycaster
+					raycaster.setFromCamera(mouse, camera);
+
+					// Check for intersections with grid images
+					const intersects = raycaster.intersectObjects(window.gridImages);
+
+					if (intersects.length > 0) {
+						const clickedImage = intersects[0].object;
+						console.log('Image clicked:', clickedImage.userData.index);
+					}
+				});
+
+				// Hide overlays when clicking elsewhere
+				document.addEventListener('click', function (event) {
+					if (hoveredImage && !event.target.closest('.image-overlay')) {
+						hideOverlay(hoveredImage);
+						hoveredImage = null;
+					}
+				});
+			}
+		}
+
+
+		function loadTextures() {
+			const promises = imageSources.map(src =>
+				new Promise(resolve => {
+					textureLoader.load(src, texture => {
+						textures.push(texture);
+						resolve();
+					});
+				})
+			);
+			return Promise.all(promises);
+		}
+
+		// Modify the createImages function to initialize images with 0 scale
+		function createImages() {
+			// Calculate total width and height of the grid
+			const totalWidth = config.columns * (config.imageWidth + config.spacing) - config.spacing;
+			const totalHeight = config.rows * (config.imageHeight + config.spacing) - config.spacing;
+
+			// Create images
+			for (let i = 0; i < config.totalImages; i++) {
+				// const row = Math.floor(i / config.columns);
+
+				// start at bottom
+				const row = config.rows - 1 - Math.floor(i / config.columns);
+
+				const col = i % config.columns;
+
+				// Create geometry and material
+				const geometry = new THREE.PlaneGeometry(config.imageWidth, config.imageHeight);
+
+				// Determine artist group - alternating images
+				// This will create a checkerboard pattern of artist 1 and artist 2
+				const isArtist1 = (row + col) % 2 === 0;
+				const artistGroup = isArtist1 ? 1 : 2;
+
+				// Use DoubleSide to make the images visible from both sides
+				const material = new THREE.MeshBasicMaterial({
+					map: textures[i],
+					transparent: true,
+					opacity: 0, // Start invisible
+					side: THREE.DoubleSide
+				});
+
+				// Create mesh
+				const image = new THREE.Mesh(geometry, material);
+
+				// Calculate grid position
+				const xPos = (col * (config.imageWidth + config.spacing)) - (totalWidth / 2) + (config.imageWidth / 2);
+				const yPos = -(row * (config.imageHeight + config.spacing)) + (totalHeight / 2) - (config.imageHeight / 2);
+
+
+
+				// Set starting position based on artist group (alternating)
+				let startPos;
+				if (artistGroup === 1) {
+					// Artist 1 images
+					startPos = config.artist1StartPosition.clone();
+					// Add small random variation for natural look
+					// startPos.x += (Math.random() - 0.5) * 1;
+					// startPos.y += (Math.random() - 0.5) * 1;
+				} else {
+					// Artist 2 images
+					startPos = config.artist2StartPosition.clone();
+					// Add small random variation for natural look
+					// startPos.x += (Math.random() - 0.5) * 1;
+					// startPos.y += (Math.random() - 0.5) * 1;
+				}
+
+				// Set initial position to artist group starting point
+				image.position.copy(startPos);
+
+				// Start with zero scale
+				image.scale.set(0, 0, 0);
+
+				// Store target grid position and other metadata for animation
+				image.userData = {
+					gridPosition: new THREE.Vector3(xPos, yPos, 0),
+					index: i,
+					row: row,
+					col: col,
+					cylinderPosition: new THREE.Vector3(),
+					cylinderRotation: new THREE.Euler(),
+					finalRowPosition: new THREE.Vector3(),
+					finalGridPosition: new THREE.Vector3(),
+					// Sequential card-deck style timing based on index
+					artistGroup: artistGroup,
+					startPosition: startPos.clone()
+				};
+
+				// Add to scene and array
+				imageGroup.add(image);
+				images.push(image);
+			}
+
+			// Update config to match actual counts based on alternating pattern
+			const artist1Count = images.filter(img => img.userData.artistGroup === 1).length;
+			const artist2Count = images.filter(img => img.userData.artistGroup === 2).length;
+			config.artist1Count = artist1Count;
+			config.artist2Count = artist2Count;
+
+			// Calculate cylinder positions
+			calculateCylinderPositions();
+
+			// Calculate final row positions
+			calculateFinalRowPositions();
+		}
+
+		// Calculate cylinder positions with precise edge-to-edge placement
+// Calculate cylinder positions with precise edge-to-edge placement
+function calculateCylinderPositions() {
+    // IMPORTANT: We need to debug and verify there are no gaps
+    // We'll log the exact positions and check the gaps
+
+    // This approach uses exact chord positioning instead of arc length
+    const imageWidth = config.imageWidth;
+    const angleIncrement = (Math.PI * 2) / config.totalImages;
+
+    // Using pure geometry: if we have N images with width W, arranged in a perfect N-sided polygon,
+    // we can calculate the exact radius needed so they touch perfectly
+    const calculatedRadius = (imageWidth / 2) / Math.tan(Math.PI / config.totalImages);
+
+    console.log("Calculated radius for perfect edge touching:", calculatedRadius);
+
+    // Add a verification step to ensure no gaps
+    const chord = 2 * calculatedRadius * Math.sin(angleIncrement / 2);
+    console.log("Actual distance between image centers:", chord);
+    console.log("Image width:", imageWidth);
+    console.log("Gap check (should be 0 or negative):", chord - imageWidth);
+
+    // Apply an adjustment factor to prevent overlap
+    // Use a value slightly larger than 1.0 to increase the radius
+    const adjustmentFactor = 1; // Increase radius by 1% to ensure no overlap
+    const finalRadius = calculatedRadius * adjustmentFactor;
+
+    // Calculate a single row y-position (centered at 0)
+    const singleRowY = 0;
+
+    images.forEach((image, i) => {
+        // Calculate angle for this image around the cylinder
+        const angle = i * angleIncrement;
+
+        // Calculate position on cylinder with adjusted radius
+        const x = finalRadius * Math.sin(angle);
+        const z = finalRadius * Math.cos(angle);
+
+        // Calculate rotation to face outward from cylinder
+        const rotationY = angle + Math.PI; // Face outward
+
+        // Store in userData
+        image.userData.cylinderPosition = new THREE.Vector3(x, singleRowY, z);
+        image.userData.cylinderRotation = new THREE.Euler(0, rotationY, 0);
+
+        // Debug log the first few positions
+        if (i < 3) {
+            console.log(`Image ${i} position:`, x, z);
+        }
+    });
+
+    // Verify the first two images are positioned correctly
+    const img0 = images[0].userData.cylinderPosition;
+    const img1 = images[1].userData.cylinderPosition;
+    const actualDistance = Math.sqrt(
+        Math.pow(img1.x - img0.x, 2) +
+        Math.pow(img1.z - img0.z, 2)
+    );
+    console.log("Actual distance between images 0 and 1:", actualDistance);
+    console.log("Difference from image width:", actualDistance - imageWidth);
+}
+		// Calculate final row positions for scrolling and grid formation
+		function calculateFinalRowPositions() {
+			// Calculate positions for all images in one row
+			const rowSpacing = config.imageWidth + config.spacing;
+
+			images.forEach((image, i) => {
+				// Final row position (straight line)
+				const xPos = (i * rowSpacing) - ((config.totalImages - 1) * rowSpacing / 2);
+				image.userData.finalRowPosition = new THREE.Vector3(xPos, 0, 0);
+
+				// Final 2x2 grid position (only for the first 4 images)
+				if (i < 4) {
+					// Calculate grid position using precise spacing
+					const col = i % 2;  // 0 or 1
+					const row = Math.floor(i / 2);  // 0 or 1
+
+					// Explicitly calculate wider spacing to avoid overlap
+					// Use fixed values that guarantee no overlap
+					const cellWidth = config.imageWidth + 0.5;
+					const cellHeight = config.imageHeight + 0.5;
+
+					// Calculate the grid width and height
+					const gridWidth = cellWidth * 2;
+					const gridHeight = cellHeight * 2;
+
+					// Position each cell with proper spacing
+					const x = (col * cellWidth) - (gridWidth / 2) + (config.imageWidth / 2);
+					const y = (row * cellHeight) - (gridHeight / 2) + (config.imageHeight / 2);
+
+					// Store the exact grid position
+					image.userData.finalGridPosition = new THREE.Vector3(x, y, 0);
+				}
+			});
+		}
+
+		function animate() {
+			requestAnimationFrame(animate);
+
+			// Only update time and animation if not paused
+			if (!pausedBeforeStart && clock.running) {
+				// Update time
+				const deltaTime = clock.getDelta();
+				animationTime += deltaTime;
+
+				// Update animations
+				updateAnimation();
+			}
+
+			// Always render scene to show initial state
+			renderer.render(scene, camera);
+		}
+
+
+		function updateAnimation() {
+			// Determine current phase
+			currentPhase = determineCurrentPhase();
+
+			// Start cylinder rotation early during formCurve and completeCylinder
+			const formCurveProgress = getPhaseProgress('formCurve');
+			const completeCylinderProgress = getPhaseProgress('completeCylinder');
+
+			if ((currentPhase === 'formCurve' && formCurveProgress > 0.5) ||
+				currentPhase === 'completeCylinder') {
+				cylinderRotationStarted = true;
+			}
+
+			// Update based on current phase
+			switch (currentPhase) {
+				case 'staggeredAppearance':
+					animateStaggeredAppearance();
+					break;
+				case 'alignRows':
+					animateAlignRows();
+					break;
+				case 'formCurve':
+					animateFormCurve();
+					// Add early rotation during latter half of formCurve
+					if (cylinderRotationStarted) {
+						const earlyRotationSpeed = config.rotationSpeed * 0.3 * formCurveProgress;
+						imageGroup.rotation.y += earlyRotationSpeed * 0.05;
+					}
+					break;
+				case 'completeCylinder':
+					animateCompleteCylinder();
+					// Continue rotation during completeCylinder
+					if (cylinderRotationStarted) {
+						const transitionRotationSpeed = config.rotationSpeed * 0.5;
+						imageGroup.rotation.y += transitionRotationSpeed * 0.05;
+					}
+					break;
+				case 'cylinderRotation':
+					animateCylinderRotation();
+					break;
+				case 'breakToRow':
+					// Continue rotation but ease it out during breakToRow
+					animateBreakToRow();
+					break;
+				case 'scrollRow':
+					animateScrollRow();
+					break;
+				case 'formFinalGrid':
+					animateFormFinalGrid();
+					break;
+				case 'finalView':
+					// nothing
+					break;
+				default:
+					animateStaggeredAppearance();
+					break;
+			}
+
+			// Camera movement
+			updateCamera();
+		}
+
+		// Ensure phases are properly checked in determineCurrentPhase function
+		function determineCurrentPhase() {
+			// Debug log the current time
+			if (animationStarted && !window.lastTimeLog || Date.now() - window.lastTimeLog > 1000) {
+				console.log("Animation time:", animationTime);
+				window.lastTimeLog = Date.now();
+			}
+
+			// Check each phase in order
+			for (const [phaseName, phaseData] of Object.entries(phases)) {
+				const { start, duration } = phaseData;
+				if (animationTime >= start && animationTime < start + duration) {
+					// Debug log phase transitions
+					if (window.lastPhase !== phaseName) {
+						console.log("Entering phase:", phaseName, "at time:", animationTime);
+						window.lastPhase = phaseName;
+					}
+					return phaseName;
+				}
+			}
+
+			// Default to the last phase if beyond all phases
+			const lastPhaseName = Object.keys(phases).pop();
+			if (window.lastPhase !== lastPhaseName) {
+				console.log("Defaulting to last phase:", lastPhaseName);
+				window.lastPhase = lastPhaseName;
+			}
+			return lastPhaseName;
+		}
+
+		function getPhaseProgress(phaseName) {
+			const { start, duration } = phases[phaseName];
+			if (animationTime < start) return 0;
+			if (animationTime > start + duration) return 1;
+
+			return (animationTime - start) / duration;
+		}
+
+		// Modify the animateStaggeredAppearance function to add deck of cards effect
+		function animateStaggeredAppearance() {
+			const phaseProgress = getPhaseProgress('staggeredAppearance');
+
+			// Group images by artist
+			const artist1Images = images.filter(img => img.userData.artistGroup === 1);
+			const artist2Images = images.filter(img => img.userData.artistGroup === 2);
+
+			// Calculate timing gaps between cards in each deck
+			const cardDelayGap = 0.05; // 5% delay between each card in the deck
+
+			// Animate each artist group with card deck staggering
+			const animateGroup = (group, groupIndex) => {
+				group.forEach((image, i) => {
+					// Card-deck style staggered timing - sequential rather than random
+					const cardDeckDelay = i * cardDelayGap;
+
+					// Calculate progress for this image
+					let imageProgress = (phaseProgress - cardDeckDelay) / (1 - cardDeckDelay);
+					imageProgress = Math.max(0, Math.min(1, imageProgress));
+
+					// Ease the progress
+					const easedProgress = easeOutQuint(imageProgress);
+
+					// Move from artist start position to grid position
+					const startPos = image.userData.startPosition;
+					const targetPos = image.userData.gridPosition;
+
+					// Apply smooth transition
+					image.position.x = THREE.MathUtils.lerp(startPos.x, targetPos.x, easedProgress);
+					image.position.y = THREE.MathUtils.lerp(startPos.y, targetPos.y, easedProgress);
+					image.position.z = 0;
+
+					// Scale from 0 to 100%
+					const scale = easedProgress;
+					image.scale.set(scale, scale, scale);
+
+					image.material.opacity = easedProgress * 2;
+
+					/*
+					// Set opacity to full when it starts animating
+					if (imageProgress > 0) {
+						image.material.opacity = 1;
+					} else {
+						image.material.opacity = 0;
+					}
+						*/
+
+
+
+				});
+			};
+
+			// Animate both artist groups
+			animateGroup(artist1Images, 0);
+			animateGroup(artist2Images, 1);
+		}
+		function animateAlignRows() {
+			const phaseProgress = getPhaseProgress('alignRows');
+
+			// Adjust grid spacing toward zero during alignRows
+			// config.spacing = 0.05 * (1 - phaseProgress);
+			config.spacing = 0.05;
+
+			// Recalculate grid positions with new spacing
+			const totalWidth = config.columns * (config.imageWidth + config.spacing) - config.spacing;
+			const totalHeight = config.rows * (config.imageHeight + config.spacing) - config.spacing;
+
+			// Use a smoother easing for alignment
+			const easedProgress = easeInOutQuad(phaseProgress);
+
+			// Ensure all images are fully visible
+			images.forEach((image, i) => {
+				image.material.opacity = 1;
+
+				// Calculate new grid position with reduced spacing
+				const row = image.userData.row;
+				const col = image.userData.col;
+
+				const newXPos = (col * (config.imageWidth + config.spacing)) - (totalWidth / 2) + (config.imageWidth / 2);
+				const newYPos = -(row * (config.imageHeight + config.spacing)) + (totalHeight / 2) - (config.imageHeight / 2);
+
+				// Update grid position
+				image.userData.gridPosition.set(newXPos, newYPos, 0);
+
+				// Smooth transition to new grid position
+				const currentPos = image.position.clone();
+				const targetPos = image.userData.gridPosition.clone();
+
+				image.position.x = THREE.MathUtils.lerp(currentPos.x, targetPos.x, easedProgress);
+				image.position.y = THREE.MathUtils.lerp(currentPos.y, targetPos.y, easedProgress);
+				image.position.z = 0;
+			});
+		}
+
+		// 3. Update formCurve to ease in rotation:
+		function animateFormCurve() {
+			const phaseProgress = getPhaseProgress('formCurve');
+
+			// Debug log to verify we're entering this phase
+			if (phaseProgress === 0) {
+				console.log("Entering formCurve phase");
+			}
+
+			images.forEach((image, i) => {
+				// Use each image's artist group for staggered curve formation
+				// This ensures smooth transition from alignRows to formCurve
+				const staggerDelay = 0.1 * (i % 4) / 4; // Small stagger based on position
+				let adjustedProgress = (phaseProgress - staggerDelay) / (1 - staggerDelay);
+				adjustedProgress = Math.max(0, Math.min(1, adjustedProgress));
+
+				// Ease the progress
+				const easedProgress = easeInOutQuad(adjustedProgress);
+
+				// First, move all images to a single row at y=0
+				const singleRowY = 0;
+				const startY = image.userData.gridPosition.y;
+
+				// Move to single row first, then to cylinder position
+				const y = THREE.MathUtils.lerp(startY, singleRowY, easedProgress);
+
+				// Start transitioning to cylinder position for x and z
+				const gridPos = image.userData.gridPosition;
+				const cylPos = image.userData.cylinderPosition;
+
+				// For position, transition to cylinder based on individual progress
+				image.position.x = THREE.MathUtils.lerp(gridPos.x, cylPos.x, easedProgress);
+				image.position.y = y; // First move to a single row
+				image.position.z = THREE.MathUtils.lerp(0, cylPos.z, easedProgress);
+
+				// Start rotating to face outward
+				const rotationY = easedProgress * image.userData.cylinderRotation.y;
+				image.rotation.y = rotationY;
+			});
+
+			// Start rotation in second half with easing in
+			if (phaseProgress > 0.3) { // Start at 30% instead of 50%
+				// Calculate eased rotation rate over a longer period
+				const rotationEaseProgress = (phaseProgress - 0.3) / 0.7; // Use 70% of the phase for easing
+				const easedRotationProgress = easeInQuint(rotationEaseProgress);
+				cylinderRotationRate = config.rotationSpeed * 0.05 * easedRotationProgress;
+
+				// Apply rotation
+				cylinderCurrentRotation += cylinderRotationRate;
+				imageGroup.rotation.y = cylinderCurrentRotation;
+			}
+		}
+		// 4. Update completeCylinder to maintain rotation:
+		function animateCompleteCylinder() {
+			const phaseProgress = getPhaseProgress('completeCylinder');
+			const easedProgress = easeOutQuint(phaseProgress);
+
+			images.forEach(image => {
+				// Complete transition to cylinder position
+				const cylPos = image.userData.cylinderPosition;
+
+				// Ensure images are in perfect cylinder positions
+				image.position.x = cylPos.x;
+				image.position.y = cylPos.y; // Single row at y=0
+				image.position.z = cylPos.z;
+
+				// Complete rotation to face outward
+				image.rotation.y = image.userData.cylinderRotation.y;
+			});
+
+			// Continue rotation at the same rate from formCurve
+			cylinderCurrentRotation += cylinderRotationRate;
+			imageGroup.rotation.y = cylinderCurrentRotation;
+		}
+
+
+		// 5. Update cylinderRotation to maintain rotation rate from previous phases:
+		function animateCylinderRotation() {
+			const phaseProgress = getPhaseProgress('cylinderRotation');
+
+			// No need to reset speed, just maintain and adjust as needed
+			// Speed profile: slower start, fast middle, slower end
+			let speedFactor;
+
+			if (phaseProgress < 0.3) {
+				// Maintain speed from previous phase
+				speedFactor = 1;
+			} else if (phaseProgress > 0.7) {
+				// Slow down - longer deceleration (40% of the phase)
+				speedFactor = easeOutQuint(1 - (phaseProgress - 0.7) / 0.3) * 1.2; // End slowly from 120% speed
+			} else {
+				// Fast middle - maintain high speed for longer
+				const midProgress = (phaseProgress - 0.3) / (0.7 - 0.3);
+				speedFactor = 1 + midProgress * 0.2; // Ramp from 100% to 120% speed
+			}
+
+			// Apply rotation at consistent rate, adjusted by factor
+			cylinderRotationRate = config.rotationSpeed * 0.05 * speedFactor;
+			cylinderCurrentRotation += cylinderRotationRate;
+			imageGroup.rotation.y = cylinderCurrentRotation;
+
+			// Keep images in cylinder formation
+			images.forEach(image => {
+				image.position.copy(image.userData.cylinderPosition);
+				image.rotation.copy(image.userData.cylinderRotation);
+			});
+		}
+
+
+
+		// 6. Update breakToRow to continue slowing rotation and use initial spacing:
+		// 2. MUCH slower rotation easing with a slight bounce effect
+		function animateBreakToRow() {
+			const phaseProgress = getPhaseProgress('breakToRow');
+
+			// Use a custom slowdown curve with a slight bounce at the end
+			if (cylinderRotationRate > 0) {
+				// This easing keeps rotation speed high for longer, then gradually decreases
+				// with a very slight bounce near the end for visual interest
+				let slowdownFactor;
+
+				if (phaseProgress < 0.7) {
+					// Maintain high speed for the first 70% of the phase
+					// Only slight deceleration during this period
+					slowdownFactor = 1 - (phaseProgress * 0.15);
+				} else {
+					// For the last 30%, add a slight bounce effect
+					const bounceProgress = (phaseProgress - 0.7) / 0.3;
+
+					// Custom bounce easing function (starts at ~0.85 and ends at 0)
+					// This creates a gentle deceleration with a slight uptick around 85-90%
+					const baseEase = easeOutQuint(bounceProgress);
+					const bounce = Math.sin(bounceProgress * Math.PI) * 0.1; // Small bounce effect
+
+					// Apply the bounce only in the middle of the final deceleration
+					slowdownFactor = 0.85 - (baseEase * 0.85) + (bounce * (1 - Math.abs(2 * bounceProgress - 1)));
+				}
+
+				// Apply the slowed down rotation with potential bounce
+				cylinderRotationRate = config.rotationSpeed * 0.05 * slowdownFactor;
+				cylinderCurrentRotation += cylinderRotationRate;
+				imageGroup.rotation.y = cylinderCurrentRotation;
+			}
+
+			// On the first frame of this phase, prepare for unwrapping
+			if (phaseProgress === 0 || !images[0].userData.cylinderEndState) {
+				// Reset spacing to initial value for row positioning
+				config.spacing = 0.05; // Reset to initial spacing
+				// Save the current state of all images in the cylinder
+				images.forEach(image => {
+					// Save positions and rotation in world space
+					const worldPos = new THREE.Vector3();
+					image.getWorldPosition(worldPos);
+
+					// Get world rotation
+					const worldQuat = new THREE.Quaternion();
+					image.getWorldQuaternion(worldQuat);
+
+					// Store state for consistent use
+					image.userData.cylinderEndState = {
+						position: worldPos.clone(),
+						quaternion: worldQuat.clone()
+					};
+
+					// Remove from group, add to scene
+					if (image.parent === imageGroup) {
+						imageGroup.remove(image);
+						scene.add(image);
+
+						// Preserve exact world position and rotation
+						image.position.copy(worldPos);
+						image.setRotationFromQuaternion(worldQuat);
+					}
+				});
+
+
+				// Update row calculation with initial spacing
+				images.forEach((image, i) => {
+					// Calculate final row position with initial spacing
+					const rowSpacing = config.imageWidth + 0.05; // Use initial spacing value
+					const xPos = (i * rowSpacing) - ((config.totalImages - 1) * rowSpacing / 2);
+					image.userData.finalRowPosition = new THREE.Vector3(xPos, 0, 0);
+				});
+
+				// Sort images by their X position for correct unwrapping sequence
+				images.sort((a, b) =>
+					a.userData.cylinderEndState.position.x -
+					b.userData.cylinderEndState.position.x
+				);
+
+				// Assign sequence index and calculate row positions
+				images.forEach((image, i) => {
+					image.userData.unwrapSequence = i;
+
+					// Calculate final row position - evenly spaced in a straight line
+					const rowSpacing = config.imageWidth + config.spacing;
+					const xPos = (i * rowSpacing) - ((config.totalImages - 1) * rowSpacing / 2);
+					image.userData.finalRowPosition = new THREE.Vector3(xPos, 0, 0);
+				});
+
+				// Empty the image group
+				while (imageGroup.children.length) {
+					imageGroup.remove(imageGroup.children[0]);
+				}
+			}
+
+			// Unwrap the cylinder with proper easing
+			images.forEach((image, i) => {
+				// Add staggered delay based on position in sequence
+				// This creates a wave-like unwrapping effect
+				const staggerDelay = image.userData.unwrapSequence / images.length * 0.5;
+				let imageProgress = (phaseProgress - staggerDelay) / (1 - staggerDelay);
+				imageProgress = Math.max(0, Math.min(1, imageProgress)); // Clamp to 0-1
+
+				// Use a smoother easing function for each image's transition
+				const imageEasedProgress = easeInOutCubic(imageProgress);
+
+				// Get starting cylinder position and target row position
+				const cylinderPos = image.userData.cylinderEndState.position.clone();
+				const rowPos = image.userData.finalRowPosition.clone();
+
+				// Apply smooth transition from cylinder to row
+				image.position.x = THREE.MathUtils.lerp(cylinderPos.x, rowPos.x, imageEasedProgress);
+				image.position.y = THREE.MathUtils.lerp(cylinderPos.y, rowPos.y, imageEasedProgress);
+				image.position.z = THREE.MathUtils.lerp(cylinderPos.z, 0, imageEasedProgress);
+
+				// Smoothly rotate to face forward using quaternion interpolation
+				const startQuaternion = image.userData.cylinderEndState.quaternion.clone();
+				const endQuaternion = new THREE.Quaternion(); // Identity quaternion (facing forward)
+
+				image.quaternion.slerpQuaternions(startQuaternion, endQuaternion, imageEasedProgress);
+
+				// Ensure full visibility
+				image.material.opacity = 1;
+			});
+		}
+
+		function animateScrollRow() {
+			const phaseProgress = getPhaseProgress('scrollRow');
+
+			// Calculate time-based movement instead of progress-based
+			const elapsedTime = phaseProgress * phases.scrollRow.duration;
+			const scrollAmount = config.scrollSpeed * elapsedTime;
+			
+			// At start of scrollRow, create the new grid images if not already created
+			if (phaseProgress <= 0.01 && !window.gridImagesCreated) {
+				createGridImages();
+				window.gridImagesCreated = true;
+				
+				// Set visibility flag immediately to ensure seamless transition
+				window.lastGridImageVisible = true;
+			}
+			
+			// Store the final scroll speed for consistent off-screen movement
+			if (phaseProgress > 0.95) {
+				// Calculate instantaneous speed at the end of the scroll
+				// This is now a constant value since we're using a constant speed
+				window.scrollSpeed = config.scrollSpeed;
+			}
+			
+			// Scroll the original row images
+			images.forEach((image, i) => {
+				// Move row to the RIGHT
+				image.position.x = image.userData.finalRowPosition.x + scrollAmount;
+				image.position.y = image.userData.finalRowPosition.y;
+				image.position.z = 0;
+				image.rotation.set(0, 0, 0);
+				image.material.opacity = 1;
+			});
+			
+			// Scroll the new grid images in sync with the original row
+			if (window.gridImages) {
+				window.gridImages.forEach((image, i) => {
+					// Move with the same scroll amount to stay synchronized
+					image.position.x = image.userData.rowPosition.x + scrollAmount;
+					image.position.y = 0;
+					image.position.z = 0;
+					image.rotation.set(0, 0, 0);
+					image.material.opacity = 1;
+				});
+				
+				// Always set the last grid image as visible to ensure continuous motion
+				window.lastGridImageVisible = true;
+			}
+		}
+
+		// Create grid images that are part of the scrolling row
+		function createGridImages() {
+			// Store original images for reference
+			window.originalImages = images.slice();
+			window.gridImages = [];
+
+			// Calculate positions for the new images in the row
+			const rowSpacing = config.imageWidth + config.spacing;
+
+			// Position the grid images to the LEFT of the leftmost original image
+			const leftmostX = window.originalImages[0].userData.finalRowPosition.x;
+
+			// Create a single geometry to ensure all images have identical dimensions
+			const sharedGeometry = new THREE.PlaneGeometry(config.imageWidth, config.imageHeight);
+
+			for (let i = 0; i < 4; i++) {
+				// Use the shared geometry for consistency
+				// Create material
+				const material = new THREE.MeshBasicMaterial({
+					map: textures[i],
+					transparent: true,
+					opacity: 1,
+					side: THREE.DoubleSide
+				});
+
+				// Create mesh with shared geometry
+				const image = new THREE.Mesh(sharedGeometry, material);
+
+				// Force consistent scale explicitly
+				image.scale.set(1, 1, 1);
+
+				// Position LEFT of the row in sequence
+				const xPos = leftmostX - ((4 - i) * rowSpacing);
+
+				// Position as part of the row
+				image.position.set(xPos, 0, 0);
+
+				// Store data for grid positioning
+				image.userData = {
+					index: i,
+					row: Math.floor(i / 2),
+					col: i % 2,
+					rowPosition: new THREE.Vector3(xPos, 0, 0)
+				};
+
+				// Add to scene
+				scene.add(image);
+				window.gridImages.push(image);
+			}
+
+			// Calculate final grid positions
+			calculateFinalGrid();
+		}
+
+		// Function to calculate precisely centered and consistently sized 2x2 grid
+		function calculateFinalGrid() {
+			if (!window.gridImages) return;
+
+			// Get image dimensions and use initial spacing
+			const imageWidth = config.imageWidth;
+			const imageHeight = config.imageHeight;
+
+			// Calculate the total dimensions of the grid with initial spacing
+			const totalWidth = (imageWidth * 2) + config.spacing;
+			const totalHeight = (imageHeight * 2) + config.spacing;
+
+			// Calculate positions for a perfectly centered 2x2 grid
+			const gridPositions = [];
+
+			// Top-left
+			gridPositions.push({
+				x: -totalWidth / 2 + imageWidth / 2,
+				y: totalHeight / 2 - imageHeight / 2
+			});
+
+			// Top-right
+			gridPositions.push({
+				x: -totalWidth / 2 + imageWidth / 2 + imageWidth + config.spacing,
+				y: totalHeight / 2 - imageHeight / 2
+			});
+
+			// Bottom-left
+			gridPositions.push({
+				x: -totalWidth / 2 + imageWidth / 2,
+				y: totalHeight / 2 - imageHeight / 2 - imageHeight - config.spacing
+			});
+
+			// Bottom-right
+			gridPositions.push({
+				x: -totalWidth / 2 + imageWidth / 2 + imageWidth + config.spacing,
+				y: totalHeight / 2 - imageHeight / 2 - imageHeight - config.spacing
+			});
+
+			// Assign positions to the grid images - ensure consistent sizes
+			for (let i = 0; i < window.gridImages.length; i++) {
+				window.gridImages[i].userData.finalGridPosition = new THREE.Vector3(
+					gridPositions[i].x,
+					gridPositions[i].y,
+					0
+				);
+				// Make sure all images have exactly the same scale
+				window.gridImages[i].scale.set(1, 1, 1);
+			}
+		}
+
+		// Transition grid images one by one to form final grid
+		// Ensure all grid images have consistent size
+		function animateFormFinalGrid() {
+			const phaseProgress = getPhaseProgress('formFinalGrid');
+			const easedProgress = easeOutQuint(phaseProgress);
+
+			let scrollSpeed = window.scrollSpeed || config.scrollSpeed;
+			
+			// Calculate how much additional scrolling should happen in this phase
+			// Based on the same speed from the scrollRow phase
+			const additionalScrollTime = phaseProgress * phases.formFinalGrid.duration;
+			const additionalScroll = scrollSpeed * additionalScrollTime;
+			
+			// Calculate the total scroll amount (end of scrollRow + additional scroll)
+			// The value 15 here represents the total scroll from scrollRow, or use whatever final value was reached
+			const endScrollRowAmount = scrollSpeed * phases.scrollRow.duration;
+			const totalScrollAmount = endScrollRowAmount + additionalScroll;
+			
+			// Continue moving ALL original images off-screen at CONSISTENT speed
+			window.originalImages.forEach(image => {
+				// Apply continuous scroll with the same velocity
+				image.position.x = image.userData.finalRowPosition.x + totalScrollAmount;
+				image.position.y = image.userData.finalRowPosition.y;
+				image.position.z = 0;
+				image.rotation.set(0, 0, 0);
+				image.material.opacity = 1;
+			});
+			
+			// Transition grid images from row positions to grid positions
+			if (window.gridImages) {
+				const reverseOrder = [3, 2, 1, 0];
+				
+				reverseOrder.forEach((index, i) => {
+					const image = window.gridImages[index];
+					
+					// Staggered animation for grid images in REVERSE order
+					const staggerDelay = i * 0.05; // More pronounced staggering
+					const staggerDuration = 0.7; // 70% of phase duration
+					
+					// Calculate individual progress
+					let imageProgress = (phaseProgress - staggerDelay) / staggerDuration;
+					imageProgress = Math.max(0, Math.min(1, imageProgress)); // Clamp to 0-1
+					
+					// Use a smoother easing function
+					const imageEasedProgress = easeOutQuint(imageProgress);
+					
+					// Starting position - where it was at end of scroll row
+					const startX = image.userData.rowPosition.x + endScrollRowAmount;
+					const startY = 0;
+					
+					// Get target grid position
+					const gridPos = image.userData.finalGridPosition;
+					
+					// Smoothly transition from row to grid position
+					image.position.x = THREE.MathUtils.lerp(startX, gridPos.x, imageEasedProgress);
+					image.position.y = THREE.MathUtils.lerp(startY, gridPos.y, imageEasedProgress);
+					
+					// Maintain consistent scale
+					image.scale.set(1, 1, 1);
+				});
+			}
+			
+			// Setup interaction once the grid is mostly formed
+			if (phaseProgress > 0.8 && window.gridImages && !window.gridImagesInteractive) {
+				setupGridInteractions();
+			}
+		}
+		function updateCamera() {
+			// Determine target camera position based on current and next phase
+			const currentPhaseName = currentPhase;
+			let targetPosition;
+
+			// Get target position from current phase
+			if (phases[currentPhaseName] && phases[currentPhaseName].camera) {
+				targetPosition = phases[currentPhaseName].camera;
+			} else {
+				// Default position if camera not defined
+				targetPosition = new THREE.Vector3(0, 0, 15);
+			}
+
+			// Calculate progress within current phase to ease camera transition
+			const phaseProgress = getPhaseProgress(currentPhaseName);
+
+			// Find the next phase for smooth transitions between phases
+			let nextPhase = null;
+			let found = false;
+
+			for (const [phaseName, phaseData] of Object.entries(phases)) {
+				if (found && phaseData.camera) {
+					nextPhase = phaseName;
+					break;
+				}
+				if (phaseName === currentPhaseName) {
+					found = true;
+				}
+			}
+
+			// If we're near the end of the current phase and there's a next phase,
+			// start blending to next phase's camera position
+			if (nextPhase && phaseProgress > 0.75) {
+				const blendFactor = (phaseProgress - 0.75) / 0.25; // 0 to 1 in the last 25% of phase
+				const nextPosition = phases[nextPhase].camera;
+
+				// Blend between current and next phase camera positions
+				targetPosition = targetPosition.clone().lerp(nextPosition, easeInOutQuad(blendFactor));
+			}
+
+			// Smoothly move camera to target position
+			camera.position.lerp(targetPosition, 0.05);
+
+			// Always look at the center
+			camera.lookAt(0, 0, 0);
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		// Begin the animation
+		init();
+		//
+
+	</script>
+	<!-- Controls Script -->
+	<script>
+
+
+		// Update the play/pause button to respect paused state
+		document.addEventListener('DOMContentLoaded', () => {
+			const playPauseBtn = document.getElementById('play-pause');
+			if (playPauseBtn) {
+				// Update the click event
+				playPauseBtn.addEventListener('click', () => {
+					// Only allow play/pause if animation has started
+					if (animationStarted) {
+						const isPlaying = clock.running;
+						if (isPlaying) {
+							clock.stop();
+							playPauseBtn.textContent = 'Play';
+						} else {
+							clock.start();
+							playPauseBtn.textContent = 'Pause';
+						}
+					} else {
+						// If animation hasn't started yet, show a message
+						alert('Please click the collab button to start the animation first');
+					}
+				});
+			}
+		});
+
+		// Set up controls once the animation is loaded
+		document.addEventListener('DOMContentLoaded', () => {
+			// Elements
+			const playPauseBtn = document.getElementById('play-pause');
+			const restartBtn = document.getElementById('restart');
+			const timelineSlider = document.getElementById('timeline');
+			const timeDisplay = document.getElementById('time-display');
+			const columnsSlider = document.getElementById('columns');
+			const columnsDisplay = document.getElementById('columns-display');
+			const rowsSlider = document.getElementById('rows');
+			const rowsDisplay = document.getElementById('rows-display');
+			const speedSlider = document.getElementById('rotation-speed');
+			const speedDisplay = document.getElementById('speed-display');
+			const spacingSlider = document.getElementById('image-spacing');
+			const spacingDisplay = document.getElementById('spacing-display');
+
+			// Animation state
+			let isPlaying = true;
+
+			// Play/Pause
+			playPauseBtn.addEventListener('click', () => {
+				isPlaying = !isPlaying;
+				playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+
+				if (isPlaying) {
+					clock.start();
+				} else {
+					clock.stop();
+				}
+			});
+
+			// Restart
+			restartBtn.addEventListener('click', () => {
+				animationTime = 0;
+				timelineSlider.value = 0;
+				timeDisplay.textContent = '0.0s';
+
+				// Reset camera
+				camera.position.set(0, 0, 15);
+				camera.rotation.set(0, 0, 0);
+
+				// Reset image group
+				imageGroup.rotation.set(0, 0, 0);
+
+				// If paused, ensure clock is reset too
+				if (!isPlaying) {
+					clock.start();
+					clock.stop();
+				}
+			});
+
+			// Timeline control
+			timelineSlider.addEventListener('input', () => {
+				const wasPlaying = isPlaying;
+
+				// Pause animation during scrubbing
+				if (isPlaying) {
+					isPlaying = false;
+					clock.stop();
+					playPauseBtn.textContent = 'Play';
+				}
+
+				// Set animation time
+				animationTime = parseFloat(timelineSlider.value);
+				timeDisplay.textContent = animationTime.toFixed(1) + 's';
+
+				// Force update animation
+				updateAnimation();
+				renderer.render(scene, camera);
+			});
+
+			// Resume playback after scrubbing
+			timelineSlider.addEventListener('change', () => {
+				// Reset clock to avoid sudden jumps
+				clock.start();
+
+				if (!isPlaying) {
+					clock.stop();
+				}
+			});
+
+			// Columns control
+			columnsSlider.addEventListener('change', () => {
+				config.columns = parseInt(columnsSlider.value);
+				columnsDisplay.textContent = config.columns;
+
+				// Recalculate total images
+				config.totalImages = config.columns * config.rows;
+
+				// Restart the animation
+				resetAnimation();
+			});
+
+			// Rows control
+			rowsSlider.addEventListener('change', () => {
+				config.rows = parseInt(rowsSlider.value);
+				rowsDisplay.textContent = config.rows;
+
+				// Recalculate total images
+				config.totalImages = config.columns * config.rows;
+
+				// Restart the animation
+				resetAnimation();
+			});
+
+			// Speed control
+			speedSlider.addEventListener('input', () => {
+				config.rotationSpeed = parseFloat(speedSlider.value);
+				speedDisplay.textContent = config.rotationSpeed.toFixed(1);
+			});
+
+			// Spacing control
+			spacingSlider.addEventListener('input', () => {
+				config.spacing = parseFloat(spacingSlider.value);
+				spacingDisplay.textContent = config.spacing.toFixed(1);
+
+				// Update grid positions with new spacing
+				updateGridPositions();
+			});
+
+			// Update timeline slider during animation
+			function updateTimelineSlider() {
+				if (isPlaying) {
+					timelineSlider.value = animationTime;
+					timeDisplay.textContent = animationTime.toFixed(1) + 's';
+
+					// Update phase display
+					const phaseDisplay = document.getElementById('phase-display');
+					if (phaseDisplay) {
+						phaseDisplay.textContent = determineCurrentPhase();
+					}
+				}
+
+				requestAnimationFrame(updateTimelineSlider);
+			}
+
+			// Update grid positions with new spacing
+			function updateGridPositions() {
+				// Calculate total width and height of the grid
+				const totalWidth = config.columns * (config.imageWidth + config.spacing) - config.spacing;
+				const totalHeight = config.rows * (config.imageHeight + config.spacing) - config.spacing;
+
+				// Update all images' grid positions
+				images.forEach((image, i) => {
+					const row = Math.floor(i / config.columns);
+					const col = i % config.columns;
+
+					const xPos = (col * (config.imageWidth + config.spacing)) - (totalWidth / 2) + (config.imageWidth / 2);
+					const yPos = -(row * (config.imageHeight + config.spacing)) + (totalHeight / 2) - (config.imageHeight / 2);
+
+					// Update the grid position
+					image.userData.gridPosition.set(xPos, yPos, 0);
+				});
+
+				// Recalculate cylinder and final positions
+				calculateCylinderPositions();
+				calculateFinalRowPositions();
+			}
+
+			// Reset the animation with new settings
+			function resetAnimation() {
+				// Remove existing images
+				while (imageGroup.children.length) {
+					const child = imageGroup.children[0];
+					imageGroup.remove(child);
+				}
+
+				images = [];
+
+				// Recreate the images
+				createImages();
+
+				// Reset animation time
+				animationTime = 0;
+				timelineSlider.value = 0;
+				timeDisplay.textContent = '0.0s';
+			}
+
+			// Start timeline updater
+			updateTimelineSlider();
+		});
+	</script>
+</body>
+
+</html>

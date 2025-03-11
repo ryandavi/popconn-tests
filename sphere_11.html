@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Volumetric Sphere Billboards</title>
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+			background: #000;
+		}
+
+		canvas {
+			display: block;
+		}
+
+		#loading-sphere-images {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			color: white;
+			font-family: Arial, sans-serif;
+			font-size: 24px;
+			text-align: center;
+			background: rgba(0, 0, 0, 0.8);
+			padding: 20px;
+			border-radius: 10px;
+			z-index: 1000;
+		}
+
+		#stats {
+			position: fixed;
+			top: 10px;
+			left: 10px;
+			color: white;
+			font-family: monospace;
+			font-size: 12px;
+			background: rgba(0, 0, 0, 0.5);
+			padding: 5px;
+		}
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            z-index: 100;
+            max-width: 90%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        .mode-btn {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn:hover {
+            background: rgba(50, 50, 50, 0.7);
+        }
+
+        .mode-btn.active {
+            background: rgba(100, 100, 255, 0.7);
+        }
+	</style>
+</head>
+
+<body>
+	<div id="loading-sphere-images">Loading...</div>
+	<div id="stats"></div>
+    <div id="controls">
+        <!-- Buttons will be added dynamically -->
+    </div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+	<script>
+		// Customizable variables
+		const CONFIG = {
+			numberOfPoints: 650,
+			maxRadius: 5,
+			minScale: .1,      // Minimum scale for distant sprites
+			maxScale: .4,      // Maximum scale for close sprites
+			rotationSpeed: 0.0055,
+			waveIntensity: 0.1,
+			waveSpeed: 1.0,
+			cameraMinDistance: 1,
+			cameraMaxDistance: 50,
+			zoomSpeed: 0.1,
+			initialDistance: 6,
+			perspective: 80, // 75
+            transitionSpeed: 0.03, // Speed of transition between modes
+            frictionFactor: 0.8  // For grid mode (lower = more friction)
+		};
+
+		const TRANSITION_CONFIG = {
+    snapToTargetThreshold: 0.001, // Much smaller distance threshold
+    velocityThreshold: 0.001,     // Much smaller velocity threshold
+    forceSnapWhenClose: true      // Force snap when very close to target
+};
+
+
+// Add this to your configuration
+const WAVE_CONFIG = {
+    fadeInDuration: 1.0,  // Seconds to fade in the wave effect after transition
+    startTime: 0          // Will be set when transition completes
+};
+
+        // Display modes registry - add new modes here
+        const displayModes = [
+            {
+                id: 'sphere',
+                name: 'Sphere',
+                getPosition: (index) => {
+                    const radius = Math.pow(Math.random(), 1/3) * CONFIG.maxRadius;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    const theta = 2 * Math.PI * Math.random();
+
+                    const x = radius * Math.sin(phi) * Math.cos(theta);
+                    const y = radius * Math.sin(phi) * Math.sin(theta);
+                    const z = radius * Math.cos(phi);
+
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: true
+            },
+            {
+                id: 'grid',
+                name: 'Grid',
+                getPosition: (index) => {
+                    const itemsPerRow = Math.ceil(Math.sqrt(CONFIG.numberOfPoints));
+                    const rowIndex = Math.floor(index / itemsPerRow);
+                    const colIndex = index % itemsPerRow;
+                    
+                    const spacing = CONFIG.maxRadius * 2 / itemsPerRow;
+                    const xOffset = (itemsPerRow * spacing) / 2;
+                    const yOffset = (Math.ceil(CONFIG.numberOfPoints / itemsPerRow) * spacing) / 2;
+                    
+                    const x = colIndex * spacing - xOffset + spacing / 2;
+                    const y = rowIndex * spacing - yOffset + spacing / 2;
+                    const z = 0;
+                    
+                    return { x, y, z };
+                },
+                enableRotation: false,
+                enableWave: false
+            },
+            {
+                id: 'spiral',
+                name: 'Spiral',
+                getPosition: (index) => {
+                    // Golden ratio spiral
+                    const goldenRatio = (1 + Math.sqrt(5)) / 2;
+                    const angleIncrement = 2 * Math.PI * goldenRatio;
+                    
+                    const theta = index * angleIncrement;
+                    const radius = CONFIG.maxRadius * Math.sqrt(index / CONFIG.numberOfPoints);
+                    
+                    const x = radius * Math.cos(theta);
+                    const y = radius * Math.sin(theta);
+                    const z = (index / CONFIG.numberOfPoints - 0.5) * CONFIG.maxRadius;
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false,
+                customAnimate: (container, time) => {
+                    // Custom animation for spiral - steady rotation
+                    container.rotation.y = time * 0.3;
+                    container.rotation.x = Math.sin(time * 0.2) * 0.3;
+                }
+            },
+
+
+
+
+
+
+
+
+            {
+                id: 'spiral2',
+                name: 'Spiral2',
+                getPosition: (index) => {
+                    // Golden ratio spiral
+                    const goldenRatio = (1 + Math.sqrt(5)) / 2 * 10; // 10 makes it more spirally
+                    const angleIncrement = 2 * Math.PI * goldenRatio; // 10 makes it wider
+                    
+                    const theta = index * angleIncrement;
+                    const radius = CONFIG.maxRadius * Math.sqrt(index / CONFIG.numberOfPoints);
+                    
+                    const x = radius * Math.cos(theta);
+                    const y = radius * Math.sin(theta);
+                    const z = (index / CONFIG.numberOfPoints - 0.5) * CONFIG.maxRadius;
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false,
+                customAnimate: (container, time) => {
+                    // Custom animation for spiral - steady rotation
+                    container.rotation.y = time * 0.3;
+                    container.rotation.x = Math.sin(time * 0.2) * 0.3;
+                }
+            },
+
+
+
+
+
+
+
+            {
+                id: 'cube',
+                name: 'Cube',
+                getPosition: (index) => {
+                    // Calculate cube size based on number of points
+                    const cubeSize = CONFIG.maxRadius * 2;
+                    
+                    // Random positions within a cube
+                    const x = (Math.random() - 0.5) * cubeSize;
+                    const y = (Math.random() - 0.5) * cubeSize;
+                    const z = (Math.random() - 0.5) * cubeSize;
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false
+            },
+            {
+                id: 'cylinder',
+                name: 'Cylinder',
+                getPosition: (index) => {
+                    // Cylinder layout that scales with number of points
+                    const radius = CONFIG.maxRadius * 0.8;
+                    const height = CONFIG.maxRadius * 2;
+                    
+                    // Calculate optimal distribution
+                    const numPointsPerCircle = Math.ceil(Math.sqrt(CONFIG.numberOfPoints / 6));
+                    const numCircles = Math.ceil(CONFIG.numberOfPoints / numPointsPerCircle);
+                    
+                    const circleIndex = Math.floor(index / numPointsPerCircle);
+                    const pointInCircleIndex = index % numPointsPerCircle;
+                    
+                    const theta = pointInCircleIndex * (2 * Math.PI / numPointsPerCircle);
+                    const stackHeight = circleIndex / (numCircles - 1 || 1);
+                    
+                    const x = radius * Math.cos(theta);
+                    const y = (stackHeight - 0.5) * height;
+                    const z = radius * Math.sin(theta);
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false
+            },
+            {
+                id: 'vortex',
+                name: 'Vortex',
+                getPosition: (index) => {
+                    // Create a vortex/tornado shape that scales with point count
+                    const pointsPerRevolution = Math.ceil(CONFIG.numberOfPoints / 8);
+                    const revolutions = Math.max(3, Math.ceil(CONFIG.numberOfPoints / 80));
+                    
+                    const segmentIndex = index % pointsPerRevolution;
+                    const revolutionIndex = Math.floor(index / pointsPerRevolution);
+                    
+                    const heightFactor = revolutionIndex / (revolutions - 1 || 1);
+                    const radius = CONFIG.maxRadius * (1 - heightFactor * 0.7);
+                    const angleOffset = (segmentIndex / pointsPerRevolution) * Math.PI * 2;
+                    const angle = heightFactor * revolutions * Math.PI * 2 + angleOffset;
+                    
+                    const x = radius * Math.cos(angle);
+                    const y = (heightFactor - 0.5) * CONFIG.maxRadius * 2;
+                    const z = radius * Math.sin(angle);
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false
+            },
+            {
+                id: 'dna',
+                name: 'DNA Helix',
+                getPosition: (index) => {
+                    // Create a double helix DNA-like structure
+                    const totalHeight = CONFIG.maxRadius * 2;
+                    const radius = CONFIG.maxRadius * 0.5;
+                    const turns = Math.ceil(CONFIG.numberOfPoints / 40) * 1400;
+                    
+                    // Determine which strand (0 or 1) this point belongs to
+                    const strand = index % 2;
+                    const pointIndex = Math.floor(index / 2);
+                    
+                    // Calculate position along the helix
+                    const heightFactor = pointIndex / (CONFIG.numberOfPoints / 2 - 1);
+                    const angle = heightFactor * turns * Math.PI * 2;
+                    
+                    // Offset the second strand by 180 degrees
+                    const strandAngle = angle + (strand * Math.PI);
+                    
+                    const x = radius * Math.cos(strandAngle);
+                    const y = (heightFactor - 0.5) * totalHeight;
+                    const z = radius * Math.sin(strandAngle);
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false
+            },
+            {
+                id: 'orbit',
+                name: 'Planetary Orbit',
+                getPosition: (index) => {
+                    // Create a solar system-like structure with orbiting planets
+                    const maxOrbits = 5; // Number of distinct orbital rings
+                    const orbitIndex = index % maxOrbits;
+                    const orbitRadius = (orbitIndex + 1) * (CONFIG.maxRadius / maxOrbits);
+                    
+                    // Calculate how many points per orbit
+                    const pointsPerOrbit = Math.ceil(CONFIG.numberOfPoints / maxOrbits);
+                    const pointInOrbitIndex = Math.floor(index / maxOrbits);
+                    
+                    // Distribute points evenly around orbit
+                    const angle = (pointInOrbitIndex % pointsPerOrbit) * (2 * Math.PI / pointsPerOrbit);
+                    
+                    // Add slight tilt to orbit planes
+                    const tiltAngle = orbitIndex * (Math.PI / 12);
+                    
+                    const x = orbitRadius * Math.cos(angle);
+                    const y = orbitRadius * Math.sin(angle) * Math.sin(tiltAngle);
+                    const z = orbitRadius * Math.sin(angle) * Math.cos(tiltAngle);
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false
+            },
+            {
+                id: 'fountain',
+                name: 'Fountain',
+                getPosition: (index) => {
+                    // Create a fountain or explosion effect
+                    const totalPoints = CONFIG.numberOfPoints;
+                    const angleStep = Math.PI * (3 - Math.sqrt(5)); // Golden angle
+                    
+                    // Each point gets its own "spray" angle
+                    const t = index / totalPoints;
+                    const inclination = Math.acos(1 - 2 * t);
+                    const azimuth = angleStep * index;
+                    
+                    // Distance from center based on index
+                    const distance = CONFIG.maxRadius * Math.sqrt(t);
+                    
+                    const x = distance * Math.sin(inclination) * Math.cos(azimuth);
+                    const y = distance * Math.cos(inclination);
+                    const z = distance * Math.sin(inclination) * Math.sin(azimuth);
+                    
+                    return { x, y, z };
+                },
+                enableRotation: true,
+                enableWave: false
+            },
+
+// New display modes to add to your displayModes array
+{
+    id: 'wave',
+    name: 'Wave',
+    getPosition: (index) => {
+        // Create a wave/ripple pattern
+        const pointsPerCircle = Math.ceil(Math.sqrt(CONFIG.numberOfPoints));
+        const circleIndex = Math.floor(index / pointsPerCircle);
+        const pointInCircleIndex = index % pointsPerCircle;
+        
+        const radiusMax = CONFIG.maxRadius * 0.9;
+        const radius = (circleIndex / Math.ceil(CONFIG.numberOfPoints / pointsPerCircle)) * radiusMax;
+        const angle = (pointInCircleIndex / pointsPerCircle) * Math.PI * 2;
+        
+        const x = radius * Math.cos(angle);
+        const z = radius * Math.sin(angle);
+        const y = Math.sin(radius * 3) * 0.5; // Wave height based on distance from center
+		
+        
+        return { x, y, z };
+    },
+    enableRotation: false,
+    enableWave: false,
+    customAnimate: (container, time) => {
+        // Animate with a rippling wave effect
+        container.children.forEach((child, idx) => {
+            const dist = Math.sqrt(child.position.x * child.position.x + child.position.z * child.position.z);
+            child.position.y = Math.sin(time * 2 - dist * 2) * 0.5;
+        });
+        container.rotation.y = time * 0.2;
+		container.rotation.z = time * 0.1;
+
+
+
+
+
+		
+    }
+},
+{
+    id: 'tornado',
+    name: 'Tornado',
+    getPosition: (index) => {
+        // Create a funnel/tornado with random variance
+        const heightFactor = index / CONFIG.numberOfPoints;
+        const radius = CONFIG.maxRadius * (0.2 + (1 - heightFactor) * 0.8);
+        const angle = index * 0.35;
+        
+        const radiusVariance = (Math.random() * 0.4 + 0.8); // 0.8 to 1.2
+        const actualRadius = radius * radiusVariance;
+        
+        const x = actualRadius * Math.cos(angle);
+        const y = (heightFactor - 0.5) * CONFIG.maxRadius * 2;
+        const z = actualRadius * Math.sin(angle);
+        
+        return { x, y, z };
+    },
+    enableRotation: false,
+    enableWave: false,
+    customAnimate: (container, time) => {
+        // Spinning tornado animation
+        container.rotation.y = time * 1.5;
+    }
+},
+{
+    id: 'galaxy',
+    name: 'Galaxy',
+    getPosition: (index) => {
+        // Spiral galaxy with arms
+        const armCount = 5;
+        const arm = index % armCount;
+        const armPosition = Math.floor(index / armCount) / Math.floor(CONFIG.numberOfPoints / armCount);
+        
+        // Logarithmic spiral
+        const growthFactor = 0.3;
+        const angle = armPosition * Math.PI * 4 + (arm * Math.PI * 2 / armCount);
+        
+        const radius = CONFIG.maxRadius * armPosition;
+        
+        // Add some randomness to create volume
+        const radiusOffset = (Math.random() - 0.5) * 0.3 * radius;
+        const heightOffset = (Math.random() - 0.5) * 0.2 * radius;
+        
+        const x = (radius + radiusOffset) * Math.cos(angle);
+        const y = heightOffset * (1 - armPosition); // Thinner at edges
+        const z = (radius + radiusOffset) * Math.sin(angle);
+        
+        return { x, y, z };
+    },
+    enableRotation: false,
+    enableWave: false,
+    customAnimate: (container, time) => {
+        container.rotation.y = time * 0.5;
+		container.rotation.z = Math.cos(time * 0.05) * .5;
+        container.rotation.x = Math.sin(time * 0.05) * 5;
+    }
+},
+{
+    id: 'fireworks',
+    name: 'Fireworks',
+    getPosition: (index) => {
+        // Create multiple explosion points
+        const explosionCount = 5;
+        const explosionSize = CONFIG.maxRadius * 0.6;
+        
+        // Determine which explosion this point belongs to
+        const explosionIndex = index % explosionCount;
+        
+        // Create center points for each explosion
+        const centers = [];
+        for (let i = 0; i < explosionCount; i++) {
+            centers.push({
+                x: (Math.random() - 0.5) * CONFIG.maxRadius * 1.5,
+                y: (Math.random() - 0.5) * CONFIG.maxRadius * 1.5,
+                z: (Math.random() - 0.5) * CONFIG.maxRadius * 1.5
+            });
+        }
+        
+        // Create random direction from explosion center
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        
+        // Random distance from center, more dense toward center
+        const distance = explosionSize * Math.pow(Math.random(), 1/3);
+        
+        const center = centers[explosionIndex];
+        
+        const x = center.x + distance * Math.sin(phi) * Math.cos(theta);
+        const y = center.y + distance * Math.sin(phi) * Math.sin(theta);
+        const z = center.z + distance * Math.cos(phi);
+        
+        return { x, y, z };
+    },
+    enableRotation: true,
+    enableWave: false
+},
+{
+    id: 'tunnel',
+    name: 'Tunnel',
+    getPosition: (index) => {
+        // Create a tunnel/tube that extends along z-axis
+        const tunnelLength = CONFIG.maxRadius * 3;
+        const tunnelRadius = CONFIG.maxRadius * 0.7;
+        
+        // Position along tunnel (z-axis)
+        const zProgress = (index / CONFIG.numberOfPoints);
+        const z = (zProgress - 0.5) * tunnelLength;
+        
+        // Position around circumference
+        const segmentsPerRing = Math.ceil(Math.sqrt(CONFIG.numberOfPoints / 10)) * 4; // 4 makes more circular
+        const segmentAngle = (index % segmentsPerRing) * (2 * Math.PI / segmentsPerRing);
+        
+        // Add some variation to radius
+        const radiusVariation = 0.85 + Math.random() * 0.3;
+        
+        const x = tunnelRadius * radiusVariation * Math.cos(segmentAngle);
+        const y = tunnelRadius * radiusVariation * Math.sin(segmentAngle);
+        
+        return { x, y, z };
+    },
+    enableRotation: false,
+    enableWave: false,
+    customAnimate: (container, time) => {
+        container.rotation.z = time * 0.2;
+    }
+},
+{
+    id: 'jellyfish',
+    name: 'Jellyfish',
+    getPosition: (index) => {
+        // Create a jellyfish-like shape
+        const bodyRadius = CONFIG.maxRadius * 0.6;
+        const bodyHeight = CONFIG.maxRadius * 0.5;
+        const tentacleLength = CONFIG.maxRadius * 1.2;
+        
+        // Determine if this is body or tentacle
+        const isBody = index < CONFIG.numberOfPoints * 0.4;
+        
+        if (isBody) {
+            // Body points (dome shape)
+            const bodyIndex = index / (CONFIG.numberOfPoints * 0.4);
+            const angle = bodyIndex * Math.PI * 20; // Spiral arrangement
+            const heightFactor = Math.pow(bodyIndex, 0.5); // More points near bottom of dome
+            const radius = bodyRadius * Math.sin(heightFactor * Math.PI);
+            
+            const x = radius * Math.cos(angle);
+            const y = bodyHeight * (1 - heightFactor);
+            const z = radius * Math.sin(angle);
+            
+            return { x, y, z };
+        } else {
+            // Tentacle points
+            const tentacleIndex = (index - CONFIG.numberOfPoints * 0.4) / (CONFIG.numberOfPoints * 0.6);
+            const tentacleCount = 15;
+            const tentacleID = Math.floor(tentacleIndex * tentacleCount);
+            const tentaclePosition = (tentacleIndex * tentacleCount) % 1;
+            
+            // Position around bottom of dome
+            const angleAround = (tentacleID / tentacleCount) * Math.PI * 2;
+            const tentacleStartX = bodyRadius * 0.8 * Math.cos(angleAround);
+            const tentacleStartZ = bodyRadius * 0.8 * Math.sin(angleAround);
+            
+            // Tentacle hangs down and curves slightly
+            const x = tentacleStartX + Math.sin(tentaclePosition * Math.PI * 3) * 0.2;
+            const y = -bodyHeight - tentaclePosition * tentacleLength;
+            const z = tentacleStartZ + Math.cos(tentaclePosition * Math.PI * 3) * 0.2;
+            
+            return { x, y, z };
+        }
+    },
+    enableRotation: false,
+    enableWave: false,
+    customAnimate: (container, time) => {
+        // Pulsing jellyfish motion
+        const pulse = Math.sin(time * 0.7) * 0.2 + 0.8;
+        container.scale.set(pulse, pulse, pulse);
+        
+        // Gentle drift
+        container.position.x = Math.sin(time * 0.3) * 0.5;
+        container.position.y = Math.cos(time * 0.2) * 0.2;
+        
+        // Tentacle movement
+        container.children.forEach((child, idx) => {
+            // Only animate tentacles (lower 60% of points)
+            if (idx >= CONFIG.numberOfPoints * 0.4) {
+                child.position.x += Math.sin(time * 2 + idx * 0.1) * 0.01;
+                child.position.z += Math.cos(time * 2 + idx * 0.1) * 0.01;
+            }
+        });
+    }
+
+
+},
+
+
+
+
+
+
+{
+    id: 'circle2',
+    name: 'Circle2',
+    getPosition: (index) => {
+        // Create a filled circle using a grid pattern
+        const totalPoints = CONFIG.numberOfPoints;
+        const radius = CONFIG.maxRadius * 0.9;
+
+        // Determine grid spacing based on the total number of points
+        const gridSize = Math.ceil(Math.sqrt(totalPoints)); // Approximate grid size
+        const step = (2 * radius) / gridSize; // Grid spacing
+
+        let count = 0;
+        for (let row = -gridSize / 2; row < gridSize / 2; row++) {
+            for (let col = -gridSize / 2; col < gridSize / 2; col++) {
+                // Calculate x and y positions
+                const x = col * step;
+                const y = row * step;
+
+                // Check if the point is inside the circle
+                if (x * x + y * y <= radius * radius) {
+                    if (count === index) return { x, y, z: 0 };
+                    count++;
+                }
+            }
+        }
+
+        // Fallback return if no valid point is found (should never happen)
+        return { x: 0, y: 0, z: 0 };
+    },
+    enableRotation: false,
+    enableWave: false
+},
+
+
+
+
+
+
+
+
+
+
+{
+    id: 'circle',
+    name: 'Circle',
+    getPosition: (index) => {
+        // Create a filled circle in the XY plane (like grid but circle-shaped)
+        // Use a spiral pattern to fill the circle
+        const totalPoints = CONFIG.numberOfPoints;
+        const radius = CONFIG.maxRadius * 0.9;
+        
+        // Fibonacci spiral for even distribution (filling the circle)
+        const goldenRatio = (1 + Math.sqrt(5)) / 2;
+        const i = index / totalPoints;
+        const theta = 2 * Math.PI * index / goldenRatio;
+        
+        // Scale radius based on index to fill the circle evenly
+        const pointRadius = radius * Math.sqrt(i);
+        
+        // Position on XY plane (flat)
+        const x = pointRadius * Math.cos(theta);
+        const y = pointRadius * Math.sin(theta);
+        const z = 0; // Completely flat
+        
+        return { x, y, z };
+    },
+    enableRotation: false,
+    enableWave: false
+},
+{
+    id: 'circle3d',
+    name: 'Circle 3D',
+    getPosition: (index) => {
+        // Filled circle with randomized depth variations
+        const totalPoints = CONFIG.numberOfPoints;
+        const radius = CONFIG.maxRadius * 0.9;
+        
+        // Fibonacci spiral for even distribution
+        const goldenRatio = (1 + Math.sqrt(5)) / 2;
+        const i = index / totalPoints;
+        const theta = 2 * Math.PI * index / goldenRatio;
+        
+        // Scale radius based on index to fill the circle evenly
+        const pointRadius = radius * Math.sqrt(i);
+        
+        // Position on XY plane with random Z variation
+        const x = pointRadius * Math.cos(theta);
+        const y = pointRadius * Math.sin(theta);
+        
+        // Create randomized variation in Z depth
+        // Use index to seed the random value so it's consistent between transitions
+        const seedRandom = (seed) => {
+            const x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        };
+        const randomZ = seedRandom(index * 541) * 2 - 1; // -1 to 1
+        const z = randomZ * CONFIG.maxRadius * 0.1; // 10% of radius for subtle effect
+        
+        return { x, y, z };
+    },
+    enableRotation: false,
+    enableWave: false
+},
+{
+    id: 'grid3d',
+    name: 'Grid 3D',
+    getPosition: (index) => {
+        const itemsPerRow = Math.ceil(Math.sqrt(CONFIG.numberOfPoints));
+        const rowIndex = Math.floor(index / itemsPerRow);
+        const colIndex = index % itemsPerRow;
+        
+        const spacing = CONFIG.maxRadius * 2 / itemsPerRow;
+        const xOffset = (itemsPerRow * spacing) / 2;
+        const yOffset = (Math.ceil(CONFIG.numberOfPoints / itemsPerRow) * spacing) / 2;
+        
+        const x = colIndex * spacing - xOffset + spacing / 2;
+        const y = rowIndex * spacing - yOffset + spacing / 2;
+        
+        // Hash-based pseudo-random function for better randomness
+        const hashRandom = (seed) => {
+            seed = (seed ^ 61) ^ (seed >>> 16);
+            seed = seed + (seed << 3);
+            seed = seed ^ (seed >>> 4);
+            seed = seed * 0x27d4eb2d;
+            seed = seed ^ (seed >>> 15);
+            return (seed >>> 0) / 4294967295; // Normalize to 0-1
+        };
+
+        const randomZ = hashRandom(index * 743) * 2 - 1; // Range -1 to 1
+        const z = randomZ * CONFIG.maxRadius * 0.3; // Increase randomness impact
+
+        return { x, y, z };
+    },
+    enableRotation: false,
+    enableWave: false
+},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        ];
+
+        let currentModeIndex = 0;
+        let transitioning = false;
+
+	// Scaling configuration
+	const SCALE_CONFIG = {
+		minTime: 1, // Minimum time in seconds for scaling animations
+		maxTime: 3, // Maximum time in seconds for scaling animations
+		minHoldTime: 2, // Minimum time in seconds to hold scale at 1
+		maxHoldTime: 4, // Maximum time in seconds to hold scale at 1
+	};
+
+
+		let camera, scene, renderer;
+		let billboards = [];
+		let billboardsContainer;
+		let loadedImages = 0;
+		let isLowPerformance = false;
+		let lastTime = 0;
+		let frameCount = 0;
+		let fps = 0;
+
+		// Detect if running on mobile or slow device
+		function detectPerformance() {
+			isLowPerformance = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+				|| navigator.hardwareConcurrency <= 4;
+
+			if (isLowPerformance) {
+				CONFIG.numberOfPoints = Math.floor(CONFIG.numberOfPoints * 0.6);
+				CONFIG.waveIntensity *= 0.5;
+			}
+		}
+
+		// Sample image URLs
+		const imageUrls = [
+			'images/pioneers/1.jpg',
+			'images/pioneers/2.jpg',
+			'images/pioneers/3.jpg',
+			'images/pioneers/4.jpg',
+			'images/pioneers/5.jpg',
+			'images/pioneers/6.jpg',
+			'images/pioneers/7.jpg',
+			'images/pioneers/8.jpg',
+			'images/pioneers/9.jpg',
+			'images/pioneers/10.jpg',
+			'images/pioneers/11.jpg',
+			'images/pioneers/12.jpg'
+		];
+
+
+		document.addEventListener('DOMContentLoaded', () => {
+			detectPerformance();
+			init();
+            setupControls();
+			animate();
+		});
+
+		function updateLoadingProgress() {
+			const totalImages = CONFIG.numberOfPoints; // Total distinct images to be loaded
+			const progress = Math.floor((loadedImages / totalImages) * 100); // Adjust percentage calculation
+			document.getElementById('loading-sphere-images').innerHTML = `Loading... ${progress}%`;
+			if (loadedImages >= totalImages) {
+				document.getElementById('loading-sphere-images').style.display = 'none';
+			}
+		}
+
+		function init() {
+			scene = new THREE.Scene();
+
+			camera = new THREE.PerspectiveCamera(CONFIG.perspective, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.z = CONFIG.initialDistance;
+
+			renderer = new THREE.WebGLRenderer({ antialias: !isLowPerformance });
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setPixelRatio(isLowPerformance ? 1 : window.devicePixelRatio);
+			document.body.appendChild(renderer.domElement);
+
+			billboardsContainer = new THREE.Object3D();
+			scene.add(billboardsContainer);
+
+			const textureLoader = new THREE.TextureLoader();
+			textureLoader.crossOrigin = 'anonymous';
+
+			// Create billboards
+			for (let i = 0; i < CONFIG.numberOfPoints; i++) {
+				// Initialize with default mode positions
+                const position = displayModes[currentModeIndex].getPosition(i);
+
+				textureLoader.load(
+					imageUrls[i % imageUrls.length],
+					(function (index, pos) {
+						return function (texture) {
+							const material = new THREE.SpriteMaterial({
+								map: texture,
+								transparent: true,
+								opacity: 1
+							});
+
+							const billboard = new THREE.Sprite(material);
+							billboard.position.set(pos.x, pos.y, pos.z);
+
+							const imageAspect = texture.image.width / texture.image.height;
+							const distanceScale = 0.3 + (0.7 * (1 - Math.sqrt(pos.x*pos.x + pos.y*pos.y + pos.z*pos.z)/CONFIG.maxRadius)); 
+
+							billboard.scale.set(imageAspect * distanceScale, distanceScale, 1);
+
+							billboardsContainer.add(billboard);
+							billboards.push({
+								sprite: billboard,
+								initialPosition: new THREE.Vector3(pos.x, pos.y, pos.z),
+                                targetPosition: new THREE.Vector3(pos.x, pos.y, pos.z),
+                                velocity: new THREE.Vector3(0, 0, 0),
+								distanceToCamera: 0
+							});
+
+							loadedImages++;
+							updateLoadingProgress();
+						};
+					})(i, position),
+					undefined,
+					function (error) {
+						console.error('Error loading texture:', error);
+						loadedImages++;
+						updateLoadingProgress();
+					}
+				);
+			}
+
+			renderer.domElement.addEventListener('wheel', onMouseWheel, { passive: false });
+			window.addEventListener('resize', onWindowResize, false);
+
+			const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+			scene.add(ambientLight);
+		}
+        
+        // Set up button controls
+        function setupControls() {
+            const controlsContainer = document.getElementById('controls');
+            
+            // Create a button for each mode
+            displayModes.forEach((mode, index) => {
+                const button = document.createElement('button');
+                button.id = `${mode.id}-mode`;
+                button.className = 'mode-btn' + (index === currentModeIndex ? ' active' : '');
+                button.textContent = mode.name;
+                button.addEventListener('click', () => switchMode(index));
+                controlsContainer.appendChild(button);
+            });
+        }
+
+// Modified switchMode function to reset wave timing when mode changes
+function switchMode(newModeIndex) {
+    if (currentModeIndex === newModeIndex) return;
+    
+    // Update button states
+    document.querySelectorAll('.mode-btn').forEach((btn, idx) => {
+        if (idx === newModeIndex) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    const newMode = displayModes[newModeIndex];
+    
+    // Update target positions for all billboards
+    billboards.forEach((billboard, index) => {
+        const newPosition = newMode.getPosition(index);
+        billboard.targetPosition.set(newPosition.x, newPosition.y, newPosition.z);
+    });
+    
+    currentModeIndex = newModeIndex;
+    transitioning = true;
+    
+    // Reset container rotation if needed
+    if (!newMode.enableRotation) {
+        billboardsContainer.rotation.set(0, 0, 0);
+    }
+    
+    // Reset wave fade-in timing
+    WAVE_CONFIG.startTime = 0;
+}
+
+		function onMouseWheel(event) {
+			event.preventDefault();
+			const delta = event.deltaY > 0 ? 1 : -1;
+			camera.position.z += delta * CONFIG.zoomSpeed * Math.abs(camera.position.z);
+			camera.position.z = Math.max(CONFIG.cameraMinDistance,
+				Math.min(CONFIG.cameraMaxDistance, camera.position.z));
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		function updateFPS() {
+			frameCount++;
+			const now = performance.now();
+			const delta = now - lastTime;
+
+			if (delta >= 1000) {
+				fps = Math.round((frameCount * 1000) / delta);
+				frameCount = 0;
+				lastTime = now;
+				document.getElementById('stats').innerHTML = `FPS: ${fps}`;
+				document.getElementById('stats').innerHTML += `<br>Camera Z: ${camera.position.z.toFixed(2)}`;
+                document.getElementById('stats').innerHTML += `<br>Mode: ${displayModes[currentModeIndex].name}`;
+			}
+		}
+
+		function updateBillboardScale(billboard) {
+			const sprite = billboard.sprite;
+
+			// Calculate the world position of the sprite
+			const worldPosition = new THREE.Vector3();
+			sprite.getWorldPosition(worldPosition);
+
+			// Calculate the distance to the camera
+			const distanceToCamera = camera.position.distanceTo(worldPosition);
+			billboard.distanceToCamera = distanceToCamera;
+
+			// Scale calculation based on distance
+			const scale = CONFIG.minScale + (CONFIG.maxScale - CONFIG.minScale) * (1 - Math.min(distanceToCamera / (CONFIG.maxRadius * 2), 1));
+
+			// Adjust scale with aspect ratio
+			const aspect = sprite.material.map.image.width / sprite.material.map.image.height;
+			sprite.scale.set(aspect * scale, scale, 1);
+		}
+
+
+
+// Modify the updatePositions function
+function updatePositions(time) {
+    const currentMode = displayModes[currentModeIndex];
+    let stillTransitioning = false;
+    
+    billboards.forEach(billboard => {
+        const sprite = billboard.sprite;
+        const targetPos = billboard.targetPosition;
+        
+        if (transitioning) {
+            // During transition, always use physics
+            const stillMoving = applyPhysicsTransition(billboard, targetPos);
+            if (stillMoving) {
+                stillTransitioning = true;
+            }
+        } else if (currentMode.enableWave) {
+            // Get elapsed time since transition completed
+            const timeSinceTransition = time - WAVE_CONFIG.startTime;
+            
+            // Calculate wave intensity with fade-in
+            let waveIntensity = CONFIG.waveIntensity;
+            if (timeSinceTransition < WAVE_CONFIG.fadeInDuration) {
+                // Gradually increase from 0 to full intensity
+                waveIntensity *= (timeSinceTransition / WAVE_CONFIG.fadeInDuration);
+            }
+            
+            // Apply wave effect using target position as base
+            const waveX = Math.sin(time + targetPos.x) * waveIntensity;
+            const waveY = Math.cos(time + targetPos.y) * waveIntensity;
+            const waveZ = Math.sin(time + targetPos.z) * waveIntensity;
+            
+            sprite.position.x = targetPos.x + waveX;
+            sprite.position.y = targetPos.y + waveY;
+            sprite.position.z = targetPos.z + waveZ;
+        } else {
+            // Non-wave mode, not transitioning - just stay at target
+            sprite.position.copy(targetPos);
+        }
+        
+        updateBillboardScale(billboard);
+    });
+    
+    // Update transitioning state
+    if (transitioning && !stillTransitioning) {
+        // Just finished transition
+        transitioning = false;
+        
+        // Record the time when transition completed (for wave fade-in)
+        WAVE_CONFIG.startTime = time;
+        
+        // Run any onTransitionComplete handler
+        if (currentMode.onTransitionComplete) {
+            currentMode.onTransitionComplete(billboards);
+        }
+        
+        // Make sure all positions are exactly at target
+        billboards.forEach(billboard => {
+            billboard.sprite.position.copy(billboard.targetPosition);
+            billboard.velocity.set(0, 0, 0);
+        });
+    } else {
+        transitioning = stillTransitioning;
+    }
+}
+
+// Improved physics transition function
+function applyPhysicsTransition(billboard, targetPos) {
+    const sprite = billboard.sprite;
+    
+    // Calculate direction vector to target
+    const dx = targetPos.x - sprite.position.x;
+    const dy = targetPos.y - sprite.position.y;
+    const dz = targetPos.z - sprite.position.z;
+    
+    // Calculate distance to target
+    const distanceToTarget = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    
+    // If very close to target with wave enabled modes, force snap to prevent visible jump
+    if (TRANSITION_CONFIG.forceSnapWhenClose && 
+        distanceToTarget < TRANSITION_CONFIG.snapToTargetThreshold * 10) {
+        sprite.position.copy(targetPos);
+        billboard.initialPosition.copy(targetPos);
+        billboard.velocity.set(0, 0, 0);
+        return false;
+    }
+    
+    // Apply force towards target (with some damping/friction)
+    billboard.velocity.x += dx * CONFIG.transitionSpeed;
+    billboard.velocity.y += dy * CONFIG.transitionSpeed;
+    billboard.velocity.z += dz * CONFIG.transitionSpeed;
+    
+    // Apply friction
+    billboard.velocity.x *= CONFIG.frictionFactor;
+    billboard.velocity.y *= CONFIG.frictionFactor;
+    billboard.velocity.z *= CONFIG.frictionFactor;
+    
+    // Update position
+    sprite.position.x += billboard.velocity.x;
+    sprite.position.y += billboard.velocity.y;
+    sprite.position.z += billboard.velocity.z;
+    
+    // Check if we're still transitioning
+    const isMoving = distanceToTarget > TRANSITION_CONFIG.snapToTargetThreshold || 
+                     billboard.velocity.length() > TRANSITION_CONFIG.velocityThreshold;
+    
+    if (!isMoving) {
+        // Once we've reached the target, ensure exact positioning
+        sprite.position.copy(targetPos);
+        billboard.initialPosition.copy(targetPos);
+        billboard.velocity.set(0, 0, 0);
+    }
+    
+    return isMoving;
+}
+
+
+		function animate() {
+			requestAnimationFrame(animate);
+
+			const time = Date.now() * 0.001 * CONFIG.waveSpeed;
+            const currentMode = displayModes[currentModeIndex];
+
+            // Handle rotation based on mode
+            if (currentMode.customAnimate) {
+                // Use custom animation if provided
+                currentMode.customAnimate(billboardsContainer, time);
+            } else if (currentMode.enableRotation) {
+                // Use default rotation
+                billboardsContainer.rotation.y += Math.sin(time * CONFIG.rotationSpeed) * CONFIG.rotationSpeed;
+                billboardsContainer.rotation.x += Math.cos(time * CONFIG.rotationSpeed) * CONFIG.rotationSpeed;
+                billboardsContainer.rotation.z += Math.sin(time * CONFIG.rotationSpeed * 0.5) * CONFIG.rotationSpeed;
+            } else {
+                // Gently ease rotation to 0 when rotation is disabled
+                billboardsContainer.rotation.x *= 0.95;
+                billboardsContainer.rotation.y *= 0.95;
+                billboardsContainer.rotation.z *= 0.95;
+            }
+
+			// Only update positions if frame rate is good or every other frame if low
+			if (!isLowPerformance || frameCount % 2 === 0) {
+                updatePositions(time);
+			}
+
+			renderer.render(scene, camera);
+			updateFPS();
+		}
+	</script>
+</body>
+
+</html>

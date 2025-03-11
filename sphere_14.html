@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Logo Radial Animation</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			background-color: #000;
+		}
+
+		#container {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		}
+
+		#info {
+			position: absolute;
+			bottom: 20px;
+			left: 20px;
+			color: white;
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+			opacity: 0.7;
+			z-index: 10;
+		}
+
+		#controls {
+			position: absolute;
+			top: 20px;
+			right: 20px;
+			color: white;
+			font-family: Arial, sans-serif;
+			background-color: rgba(0, 0, 0, 0.5);
+			padding: 10px;
+			border-radius: 5px;
+			z-index: 10;
+		}
+
+		button {
+			background-color: rgba(255, 255, 255, 0.2);
+			color: white;
+			border: 1px solid white;
+			border-radius: 3px;
+			padding: 5px 10px;
+			margin: 0 5px;
+			cursor: pointer;
+			transition: background-color 0.3s;
+		}
+
+		button:hover {
+			background-color: rgba(255, 255, 255, 0.4);
+		}
+	</style>
+</head>
+
+<body>
+	<div id="container"></div>
+	<div id="info">Three.js Logo Radial Animation</div>
+	<div id="controls">
+		<button id="zoomIn">Zoom In</button>
+		<button id="zoomOut">Zoom Out</button>
+		<button id="resetCamera">Reset View</button>
+	</div>
+	<!-- Import libraries -->
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
+	<script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/examples/jsm/controls/OrbitControls.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js",
+                "three/examples/jsm/postprocessing/EffectComposer.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js",
+                "three/examples/jsm/postprocessing/RenderPass.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js",
+                "three/examples/jsm/postprocessing/UnrealBloomPass.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js"
+            }
+        }
+    </script>
+	<!-- Main script -->
+	<script type="module">
+		// Import the main script code here
+		import * as THREE from 'three';
+		import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+		import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+		import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+		import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+		// GSAP is imported as a global object
+
+		// DOM element where the canvas will be appended
+		const container = document.getElementById('container');
+
+		let config = {
+			cameraZoom: 30,
+
+			// Sphere sizes
+			sphereInnerMinimum: 4,
+			sphereInnerMultiplier: 5,
+
+			// Sphere sizes
+			sphereOuterMinimum: 10,
+			sphereOuterMultiplier: 15,
+
+			sphereRotationMultiplier: 8,
+			linesRotationMultiplier: 24,
+			initialZoom: 6,
+			logoScale: 5
+		};
+
+		// Sample image URLs
+		const imageUrls = [
+			'images/pioneers/1.jpg',
+			'images/pioneers/2.jpg',
+			'images/pioneers/3.jpg',
+			'images/pioneers/4.jpg',
+			'images/pioneers/5.jpg',
+			'images/pioneers/6.jpg',
+			'images/pioneers/7.jpg',
+			'images/pioneers/8.jpg',
+			'images/pioneers/9.jpg',
+			'images/pioneers/10.jpg',
+			'images/pioneers/11.jpg',
+			'images/pioneers/12.jpg'
+		];
+
+		// Scene setup
+		const scene = new THREE.Scene();
+		scene.background = new THREE.Color(0x000000);
+
+		// Camera setup
+		const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+		camera.position.z = config.initialZoom;
+
+		// Default camera position for reset
+		const defaultCameraPosition = { x: 0, y: 0, z: config.initialZoom };
+
+		// Renderer setup
+		const renderer = new THREE.WebGLRenderer({
+			antialias: true,
+			alpha: true,
+			powerPreference: "high-performance"
+		});
+		
+		// Set renderer for accurate color reproduction
+		renderer.outputEncoding = THREE.sRGBEncoding;
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit to 2x to avoid performance issues
+		container.appendChild(renderer.domElement);
+
+		// Post-processing for enhanced bloom effect (commented out for accurate colors)
+		const renderScene = new RenderPass(scene, camera);
+		const bloomPass = new UnrealBloomPass(
+			new THREE.Vector2(window.innerWidth, window.innerHeight),
+			.8,  // strength - increased for more glow
+			0.5,  // radius - increased for wider glow
+			0.95  // threshold - decreased to make more elements glow
+		);
+
+		// Comment out composer for accurate colors
+		// const composer = new EffectComposer(renderer);
+		// composer.addPass(renderScene);
+		// composer.addPass(bloomPass);
+
+		// Enhanced OrbitControls with smooth zooming
+		const controls = new OrbitControls(camera, renderer.domElement);
+		controls.enableDamping = true; // Add inertia
+		controls.dampingFactor = 0.05;
+		controls.rotateSpeed = 0.5;
+		controls.zoomSpeed = 0.5; // Slower zoom for smoother effect
+		controls.enabled = true; // Enable for interactive control
+
+		
+
+		// Custom zoom controls
+		document.getElementById('zoomIn').addEventListener('click', () => {
+			gsap.to(camera.position, {
+				z: camera.position.z * 0.8,
+				duration: 1,
+				ease: "power2.out",
+				onComplete: () => {
+					setTimeout(() => {
+						if (typeof line !== 'undefined' && line.userData) {
+							line.userData.animationComplete = true;
+						}
+					}, 1500); // Simplified timing
+				}
+			});
+		});
+
+		document.getElementById('zoomOut').addEventListener('click', () => {
+			gsap.to(camera.position, {
+				z: camera.position.z * 1.2,
+				duration: 1,
+				ease: "power2.out"
+			});
+		});
+
+		document.getElementById('resetCamera').addEventListener('click', () => {
+			gsap.to(camera.position, {
+				x: defaultCameraPosition.x,
+				y: defaultCameraPosition.y,
+				z: defaultCameraPosition.z,
+				duration: 1.5,
+				ease: "power2.inOut"
+			});
+			gsap.to(controls.target, {
+				x: 0,
+				y: 0,
+				z: 0,
+				duration: 1.5,
+				ease: "power2.inOut"
+			});
+		});
+
+		// Resize handler
+		window.addEventListener('resize', () => {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			// No need to resize composer since we're not using it
+		});
+
+		// Function to correct texture colors
+		function correctTextureColors(texture) {
+			texture.encoding = THREE.sRGBEncoding;
+			texture.minFilter = THREE.LinearFilter;
+			texture.magFilter = THREE.LinearFilter;
+			texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+			return texture;
+		}
+
+		// Create gradient texture for lines with configurable transparency points
+		function createLineGradient(stops = [
+			{ position: 0, alpha: 0 },      // Start fully visible
+			{ position: 0.1, alpha: 1 },    // Peak opacity
+			{ position: 0.7, alpha: 0.7 },  // Start fading
+			{ position: 1, alpha: 0 }       // Fully transparent at the end
+		]) {
+			const canvas = document.createElement('canvas');
+			canvas.width = 512;
+			canvas.height = 10; // Slightly taller for visibility
+			const ctx = canvas.getContext('2d');
+
+			// Create gradient
+			const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+
+			// Add stops dynamically from input
+			stops.forEach(stop => {
+				gradient.addColorStop(stop.position, `rgba(255, 255, 255, ${stop.alpha})`);
+			});
+
+			// Apply gradient to canvas
+			ctx.fillStyle = gradient;
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+			const texture = new THREE.CanvasTexture(canvas);
+			texture.needsUpdate = true;
+
+			return texture;
+		}
+
+		// Create radial lines as tapered tubes with configurable widths
+		function createRadialLines(count = 40) {
+			const lines = new THREE.Group();
+
+			// Configuration for line widths
+			const baseWidth = 0.15;  // Width at the center/base
+			const tipWidth = 0.01;   // Width at the tip/end
+
+			// Use fibonacci sphere distribution for even spacing in all directions
+			for (let i = 0; i < count; i++) {
+				// Use fibonacci sphere distribution to get points evenly distributed over a sphere
+				const phi = Math.acos(1 - 2 * (i + 0.5) / count);
+				const theta = Math.PI * 2 * i * (1 + Math.sqrt(5)) / 2;
+
+				// Convert spherical to cartesian coordinates to get direction vector
+				const dirX = Math.sin(phi) * Math.cos(theta);
+				const dirY = Math.sin(phi) * Math.sin(theta);
+				const dirZ = Math.cos(phi);
+
+				// Randomize the line length
+				const length = 14 + Math.random() * 8;
+
+				const coneGeometry = new THREE.PlaneGeometry(baseWidth, length);
+
+				// Rotate to point along the correct axis
+				coneGeometry.rotateX(Math.PI / 2);
+
+				// Move the entire geometry so it extends FROM the center point
+				coneGeometry.translate(0, 0, length / 2);
+
+				// Create gradient texture
+				const gradientTexture = createLineGradient([
+					{ position: 0, alpha: 0 },      // Start fully visible
+					{ position: 0.1, alpha: 0 },      // Start fully visible
+					{ position: 0.4, alpha: 1 },    // Peak opacity
+					{ position: 0.7, alpha: 0.7 },  // Start fading
+					{ position: 1, alpha: 0 }       // Fully transparent at the end
+				]);
+
+				// Replace the material with this:
+				const coneMaterial = new THREE.MeshBasicMaterial({
+					color: 0xffffff,
+					map: gradientTexture,
+					transparent: true,
+					depthWrite: false,
+					side: THREE.DoubleSide
+				});
+
+				// Add these lines after creating the material:
+				coneMaterial.map.rotation = Math.PI / 2;
+				coneMaterial.map.center = new THREE.Vector2(0.5, 0.5);
+				coneMaterial.map.repeat.set(1, -1); // Flip direction if needed
+
+				const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+
+				// Create a quaternion to rotate the cone to point in the desired direction
+				const quaternion = new THREE.Quaternion();
+				// Create temporary vectors for the rotation calculation
+				const startDir = new THREE.Vector3(0, 0, 1);  // Default direction after rotateX above
+				const endDir = new THREE.Vector3(dirX, dirY, dirZ).normalize();
+				quaternion.setFromUnitVectors(startDir, endDir);
+
+				// Apply the rotation to point in the correct direction
+				cone.quaternion.copy(quaternion);
+
+				// Move the cone so its base is at the center
+				cone.position.set(0, 0, 0);
+
+				// Store initial scale for animation
+				cone.userData = {
+					originalLength: length,
+					dirX: dirX,
+					dirY: dirY,
+					dirZ: dirZ
+				};
+
+				// Start each line at zero scale (at center)
+				cone.scale.set(0, 0, 0);
+
+				lines.add(cone);
+			}
+
+			return lines;
+		}
+
+		// Create a texture loader for the images
+		const textureLoader = new THREE.TextureLoader();
+
+		// Preload textures to detect and maintain aspect ratios
+		function preloadTextures(urls) {
+			return Promise.all(urls.map(url => {
+				return new Promise((resolve) => {
+					textureLoader.load(url, (texture) => {
+						// Apply corrections for accurate colors
+						correctTextureColors(texture);
+						
+						// Get the image dimensions for aspect ratio
+						const aspectRatio = texture.image.width / texture.image.height;
+						resolve({ texture, aspectRatio });
+					}, undefined, () => {
+						// On error, resolve with a placeholder texture
+						console.warn(`Failed to load texture: ${url}`);
+						// Create a placeholder colored square
+						const canvas = document.createElement('canvas');
+						canvas.width = 128;
+						canvas.height = 128;
+						const ctx = canvas.getContext('2d');
+						ctx.fillStyle = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+						ctx.fillRect(0, 0, 128, 128);
+						const texture = new THREE.CanvasTexture(canvas);
+						resolve({ texture, aspectRatio: 1 });
+					});
+				});
+			}));
+		}
+
+		// Create grayscale fallback textures
+		function createFallbackTextures(count = 5) {
+			const textures = [];
+
+			for (let i = 0; i < count; i++) {
+				const canvas = document.createElement('canvas');
+				canvas.width = 128;
+				canvas.height = 128;
+				const ctx = canvas.getContext('2d');
+
+				// Create grayscale pattern
+				ctx.fillStyle = '#000000';
+				ctx.fillRect(0, 0, 128, 128);
+
+				ctx.fillStyle = '#ffffff';
+
+				// Different patterns for variety
+				switch (i % 5) {
+					case 0: // Circle
+						ctx.beginPath();
+						ctx.arc(64, 64, 48, 0, Math.PI * 2);
+						ctx.fill();
+						break;
+					case 1: // Square
+						ctx.fillRect(16, 16, 96, 96);
+						break;
+					case 2: // Triangle
+						ctx.beginPath();
+						ctx.moveTo(64, 16);
+						ctx.lineTo(112, 112);
+						ctx.lineTo(16, 112);
+						ctx.closePath();
+						ctx.fill();
+						break;
+					case 3: // Cross
+						ctx.fillRect(48, 16, 32, 96);
+						ctx.fillRect(16, 48, 96, 32);
+						break;
+					case 4: // Concentric circles
+						for (let r = 48; r > 0; r -= 16) {
+							ctx.beginPath();
+							ctx.arc(64, 64, r, 0, Math.PI * 2);
+							ctx.fill();
+							ctx.fillStyle = r % 32 === 0 ? '#ffffff' : '#888888';
+						}
+						break;
+				}
+
+				const texture = new THREE.CanvasTexture(canvas);
+				textures.push({ texture, aspectRatio: 1 });
+			}
+
+			return textures;
+		}
+
+		// Function to create a sprite material with accurate color representation
+		function createAccurateMaterial(texture) {
+			return new THREE.SpriteMaterial({
+				map: texture,
+				transparent: true,
+				opacity: 0, // Start transparent for animation
+				depthTest: true, // Enable depth testing
+				sizeAttenuation: true // Scale with distance
+			});
+		}
+
+		// Create billboard images
+		async function createBillboards(count = 24) {
+			const billboards = new THREE.Group();
+
+			// Preload textures to get aspect ratios
+			let textures;
+			try {
+				textures = await preloadTextures(imageUrls);
+				console.log(`Successfully loaded ${textures.length} textures`);
+
+				// If we didn't get enough textures, supplement with fallbacks
+				if (textures.length < 5) {
+					const fallbacks = createFallbackTextures(5 - textures.length);
+					textures = [...textures, ...fallbacks];
+				}
+			} catch (error) {
+				console.error("Error loading textures:", error);
+				textures = createFallbackTextures(5);
+			}
+
+			// Create billboards with textures maintaining aspect ratios
+			for (let i = 0; i < count; i++) {
+				const textureInfo = textures[i % textures.length];
+				const { texture, aspectRatio } = textureInfo;
+
+				// Use accurate color material - simplified for better color reproduction
+				const material = createAccurateMaterial(texture);
+
+				const billboard = new THREE.Sprite(material);
+
+				// Set scale based on aspect ratio
+				const baseScale = 1 + Math.random() * 0.5;
+				billboard.scale.set(baseScale * aspectRatio, baseScale, 1);
+
+				// Generate a random point on a sphere (completely random distribution)
+				// This ensures billboards move in from all directions randomly
+				const phi = Math.acos(2 * Math.random() - 1); // Random angle from Z-axis
+				const theta = Math.random() * Math.PI * 2; // Random angle around Y-axis
+
+				const targetDistance = config.sphereInnerMinimum + Math.random() * config.sphereInnerMultiplier; // Distance from center
+
+				// Calculate target position in cartesian coordinates
+				const targetX = targetDistance * Math.sin(phi) * Math.cos(theta);
+				const targetY = targetDistance * Math.sin(phi) * Math.sin(theta);
+				const targetZ = targetDistance * Math.cos(phi);
+
+				// Initial position is much farther out in same direction
+				const startDistance = config.sphereOuterMinimum + Math.random() * config.sphereOuterMultiplier; // 15-25x farther out
+
+				const startX = targetX * (startDistance / targetDistance);
+				const startY = targetY * (startDistance / targetDistance);
+				const startZ = targetZ * (startDistance / targetDistance);
+
+				billboard.position.set(startX, startY, startZ);
+
+				// Calculate randomized delay times for smoother, more varied animations
+				const fadeInDelay = Math.random() * 3; // Random delay for fade-in
+				const moveDelay = 2 + Math.random() * 4; // Delay before movement (after fade-in starts)
+				const finalOpacity = 1; // Full opacity for accurate colors
+
+				// Store final target position and animation data
+				billboard.userData = {
+					startX: startX,
+					startY: startY,
+					startZ: startZ,
+					targetX: targetX,
+					targetY: targetY,
+					targetZ: targetZ,
+					rotationSpeed: 0.002 + Math.random() * 0.003,
+					fadeInDelay: fadeInDelay,
+					moveDelay: moveDelay,
+					finalOpacity: finalOpacity
+				};
+
+				billboards.add(billboard);
+			}
+
+			return billboards;
+		}
+
+		// Create all elements
+		// Load the SVG logo using canvas
+		let logo; // Make it a global variable if not already
+
+		function loadSVGLogo() {
+			return new Promise((resolve) => {
+				// Create a canvas
+				const canvas = document.createElement('canvas');
+				canvas.width = 512 * 3;
+				canvas.height = 512 * 3;
+				const ctx = canvas.getContext('2d');
+
+				// Create an image to load the SVG
+				const img = new Image();
+				img.onload = function () {
+					// Clear canvas
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+					// Draw the SVG centered
+					const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8;
+					const x = (canvas.width - img.width * scale) / 2;
+					const y = (canvas.height - img.height * scale) / 2;
+
+					ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+					// Create texture from canvas
+					const logoTexture = new THREE.CanvasTexture(canvas);
+
+					// Create sprite material
+					const material = new THREE.SpriteMaterial({
+						map: logoTexture,
+						transparent: true,
+						opacity: 0,
+						depthWrite: false
+					});
+
+					// Create sprite
+					const logoSprite = new THREE.Sprite(material);
+					logoSprite.scale.set(config.logoScale, config.logoScale, 1);  // Larger scale
+
+					resolve(logoSprite);
+				};
+
+				// Handle loading error
+				img.onerror = function () {
+					console.error("Error loading SVG logo");
+					// Create a fallback logo - you'd need to implement createOriginalLogo if this fails
+					const fallbackLogo = new THREE.Sprite(new THREE.SpriteMaterial({
+						color: 0xffffff,
+						transparent: true
+					}));
+					fallbackLogo.scale.set(5, 5, 1);
+					resolve(fallbackLogo);
+				};
+
+				// Set the source of the image
+				img.src = 'http://localhost/popconn/images/logo_white.svg';
+			});
+		}
+
+		// Load the logo
+		loadSVGLogo().then(logoSprite => {
+			logo = logoSprite;
+			scene.add(logo);
+		});
+
+		const radialLines = createRadialLines(48);
+		scene.add(radialLines);
+
+		const sphereGroup = new THREE.Group();
+		let billboards; // Will be set after async creation
+
+		// Function to fix billboard materials after creation for accurate colors
+		function fixBillboardColors() {
+			if (billboards && billboards.children) {
+				billboards.children.forEach(billboard => {
+					// Keep the same texture but rebuild the material
+					const originalTexture = billboard.material.map;
+					const originalOpacity = billboard.material.opacity;
+					
+					// Dispose old material to prevent memory leaks
+					billboard.material.dispose();
+					
+					// Create new clean material
+					billboard.material = new THREE.SpriteMaterial({
+						map: correctTextureColors(originalTexture),
+						transparent: true,
+						opacity: originalOpacity
+					});
+				});
+			}
+		}
+
+		// Start the main setup asynchronously
+		// Start the main setup asynchronously
+		async function initScene() {
+			// Load logo first if not already loaded
+			if (!logo) {
+				logo = await loadSVGLogo();
+				scene.add(logo);
+			}
+			
+			billboards = await createBillboards(276);
+			sphereGroup.add(billboards);
+			scene.add(sphereGroup);
+			
+			// Fix billboard colors after creation
+			fixBillboardColors();
+
+			// Start animation after billboards are created
+			animateScene();
+		}
+
+		// Animation timeline  - Restructured for clarity
+		function animateScene() {
+			// Create timeline with default settings
+			const timeline = gsap.timeline({
+				defaults: { duration: 2, ease: "power2.inOut" }
+			});
+
+			let add = 2;
+
+			// Define animation phases with clear names and durations
+			const phases = {
+				logoFadeIn: {
+					start: 0,
+					duration: 3
+				},
+				cameraZoom: {
+					start: 1.5,
+					duration: 1
+				},
+				linesGrow: {
+					start: 1.3 ,
+					duration: 1.5
+				},
+				billboardsFade: {
+					start: .1 + add,
+					duration: 1.5
+				},
+				billboardsMove: {
+					start: 5.5 + add, // 1.5 + 4
+					duration: 1.3
+				},
+				linesShrink: {
+					start: 6 + add, // 1.5 + 4 + 2
+					duration: .8
+				},
+				billboardsMoveBack: {
+					start: 9 + add, // 1.5 + 4 + 2 + 1.3
+					duration: 10
+				},
+				zoomIn: {
+					start: 17 + add, // 1.5 + 4 + 2 + 1.3
+					duration: 15
+				}
+			};
+
+			// Function to easily add delays to phases later
+			function getPhaseTime(phaseName) {
+				return phases[phaseName].start;
+			}
+
+
+
+			// PHASE 1: Camera zoom out
+			timeline.to(camera.position, {
+				z: config.cameraZoom,
+				duration: phases.cameraZoom.duration,
+				ease: "power2.out"
+			}, getPhaseTime('cameraZoom'));
+
+			//fade in logo
+			timeline.to(logo.material, {
+				opacity: 1,
+				duration: phases.logoFadeIn.duration,
+				ease: "power1.out"
+			}, getPhaseTime('logoFadeIn'));
+
+
+			// PHASE 2: Radial lines grow outward
+			radialLines.children.forEach((line, index) => {
+				const staggerDelay = index * 0.03;
+
+				timeline.to(line.scale, {
+					x: 1,
+					y: 1,
+					z: 1,
+					duration: phases.linesGrow.duration,
+					ease: "power1.out"
+				}, getPhaseTime('linesGrow') + staggerDelay);
+			});
+
+			// PHASE 3: Billboards fade in
+			billboards.children.forEach((billboard, index) => {
+				const randomDelay = billboard.userData.fadeInDelay * 0.5;
+
+				timeline.to(billboard.material, {
+					opacity: 1.0,
+					duration: phases.billboardsFade.duration,
+					ease: "power1.inOut"
+				}, getPhaseTime('billboardsFade') + randomDelay);
+			});
+
+			// PHASE 4: Billboards move to position
+			billboards.children.forEach((billboard, index) => {
+				const randomDelay = billboard.userData.moveDelay * 0.3;
+
+				timeline.to(billboard.position, {
+					x: billboard.userData.targetX,
+					y: billboard.userData.targetY,
+					z: billboard.userData.targetZ,
+					duration: phases.billboardsMove.duration,
+					ease: "slow(0.3, 0.7, false)"
+				}, getPhaseTime('billboardsMove') + randomDelay);
+			});
+
+			// PHASE 5: Radial lines shrink back to center
+			radialLines.children.forEach((line, index) => {
+				const staggerDelay = index * 0.03;
+
+				timeline.to(line.scale, {
+					x: 0,
+					y: 0,
+					z: 0,
+					duration: phases.linesShrink.duration,
+					ease: "power1.out"
+				}, getPhaseTime('linesShrink') + staggerDelay);
+			});
+
+			// PHASE 6: Billboards move to position
+			billboards.children.forEach((billboard, index) => {
+				const randomDelay = billboard.userData.moveDelay * 0.6;
+
+				timeline.to(billboard.position, {
+					x: billboard.userData.startX,
+					y: billboard.userData.startY,
+					z: billboard.userData.startZ,
+					duration: phases.billboardsMoveBack.duration,
+					ease: "slow(0.3, 0.7, false)"
+				}, getPhaseTime('billboardsMoveBack') + randomDelay);
+			});
+
+			// PHASE7: Camera zoom out
+			timeline.to(camera.position, {
+				z: config.initialZoom,
+				duration: phases.zoomIn.duration,
+				ease: "power1.out"
+			}, getPhaseTime('zoomIn'));
+
+
+			return timeline;
+		}
+
+		function updateBillboardScale(billboard) {
+			// Get the world position of the billboard
+			const worldPosition = new THREE.Vector3();
+			billboard.getWorldPosition(worldPosition);
+
+			// Calculate distance from camera to billboard
+			const distanceToCamera = camera.position.distanceTo(worldPosition);
+			billboard.userData.distanceToCamera = distanceToCamera;
+
+			// Define max radius if not in config
+			const maxRadius = 20; // Adjust this value based on your scene scale
+
+			// Normalize distance to a 0-1 range
+			const normalizedDistance = Math.min(
+				distanceToCamera / (maxRadius * 2),
+				1
+			);
+
+			// Define scale properties if not in config
+			const minScale = 1;
+			const maxScale = 3.0;
+			const scaleExponent = 0.25;
+			const scaleMode = 'exponential'; // 'linear', 'exponential', or 'inverse'
+
+			// Calculate scale factor based on selected mode
+			let scaleFactor;
+			switch (scaleMode) {
+				case 'linear':
+					scaleFactor = 1 - normalizedDistance;
+					break;
+				case 'exponential':
+					scaleFactor = 1 - Math.pow(normalizedDistance, scaleExponent);
+					break;
+				case 'inverse':
+					scaleFactor = 1 / (1 + normalizedDistance * 2);
+					break;
+				default:
+					scaleFactor = 1 - Math.pow(normalizedDistance, scaleExponent);
+			}
+
+			// Calculate final scale
+			const scale = minScale + (maxScale - minScale) * scaleFactor;
+
+			// Get the aspect ratio from the sprite
+			let aspect = 1;
+			if (billboard.material && billboard.material.map && billboard.material.map.image) {
+				aspect = billboard.material.map.image.width / billboard.material.map.image.height;
+			}
+
+			// Get the original base scale that was set for this billboard
+			const baseScale = billboard.userData.baseScale || 1;
+
+			// Apply the scale with aspect ratio consideration
+			billboard.scale.set(baseScale * aspect * scale, baseScale * scale, 1);
+		}
+
+		// Start async initialization
+		initScene();
+
+		// Animation loop with improved dynamics
+		function animate() {
+			requestAnimationFrame(animate);
+
+			// Current time for animations
+			const time = Date.now() * 0.001; // Current time in seconds
+
+			sphereRotationMultiplier: 2
+
+			// Rotate the sphere with more interesting pattern
+			sphereGroup.rotation.x = Math.sin(time * 0.3) * 0.1 * config.sphereRotationMultiplier;
+			sphereGroup.rotation.y += 0.002 * config.sphereRotationMultiplier;
+			sphereGroup.rotation.z = Math.cos(time * 0.2) * 0.05 * config.sphereRotationMultiplier;
+
+			// Instead of rotating, make the lines pulse from center outward
+			if (radialLines && radialLines.children) {
+				// First apply a gentle sway
+				radialLines.rotation.x = Math.sin(time * 0.2) * 0.05 * config.linesRotationMultiplier;
+				radialLines.rotation.z = Math.cos(time * 0.25) * 0.05 * config.linesRotationMultiplier;;
+
+				// Then animate individual lines to pulse from center
+				radialLines.children.forEach((line, index) => {
+					// Skip animation if still in the initial grow phase
+					if (!line.userData.animationComplete) return;
+
+					const pulseSpeed = 0.4; // Speed of the pulse wave
+					const pulseAmount = 0.08; // Amount of pulsing (smaller for subtlety)
+					const pulsePhase = index * 0.1; // Phase offset based on line index
+
+					// Calculate scale based on sine wave
+					const pulseScale = 1 + Math.sin(time * pulseSpeed + pulsePhase) * pulseAmount;
+
+					// Apply scale outward from center by adjusting position
+					const dirX = line.userData.dirX;
+					const dirY = line.userData.dirY;
+					const dirZ = line.userData.dirZ;
+					const length = line.userData.originalLength;
+
+					// Update position to simulate growing outward
+					line.position.set(
+						dirX * length * 0.5 * pulseScale,
+						dirY * length * 0.5 * pulseScale,
+						dirZ * length * 0.5 * pulseScale
+					);
+
+					// Also adjust scale for consistent appearance during pulse
+					line.scale.set(pulseScale, pulseScale, pulseScale);
+				});
+			}
+
+			// Ensure billboards always face the camera if they exist
+			if (billboards) {
+				billboards.children.forEach(billboard => {
+					// Store the base scale if not already stored
+					if (billboard.userData.baseScale === undefined) {
+						billboard.userData.baseScale = billboard.scale.y;
+					}
+
+					// Apply scaling based on distance to camera
+					updateBillboardScale(billboard);
+
+					// Make billboards face the camera
+					billboard.lookAt(camera.position);
+				});
+			}
+
+			// Update orbit controls (important for damping/inertia)
+			controls.update();
+			
+			// Use direct rendering instead of composer for accurate colors
+			renderer.render(scene, camera);
+		}
+
+		// Start the animation loop
+		animate();
+	</script>
+</body>
+
+</html>
